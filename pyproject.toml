@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "era-bibliometrics"
+version = "0.1.0"
+description = "Study of bibliometric disparities based on ERA works"
+authors = [
+    {name = "Lawrence Cram"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "duckdb>=1.4.0",
+    "requests>=2.31.0",
+    "urllib3>=2.0.0",
+    "pyarrow>=15.0.0",
+    "lxml>=5.0.0",
+    "python-docx>=1.1.0",
+    "matplotlib>=3.8.0",
+    "pybliometrics>=4.0.0",
+    "diskcache>=5.6.0",
+    "openpyxl>=3.1.0",
+    "pyenchant>=3.2.0",
+    "ftfy>=6.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

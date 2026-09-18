@@ -1,0 +1,13 @@
+duckdb==1.4.4
+requests==2.34.2
+urllib3==2.7.0
+pyarrow==25.0.0
+lxml==6.0.2
+python-docx==1.2.0
+matplotlib==3.11.1
+pybliometrics==4.4.1
+diskcache==5.6.3
+openpyxl==3.1.5
+pytest==9.1.1
+pyenchant==3.3.0
+ftfy==6.3.1

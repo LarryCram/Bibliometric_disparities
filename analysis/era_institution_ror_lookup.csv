@@ -1,0 +1,41 @@
+era_institution_name,ror_id,oax_institution_display_name,match_method
+"Australian Catholic University","https://ror.org/04cxm4j25","Australian Catholic University",auto
+"Bond University","https://ror.org/006jxzx88","Bond University",auto
+"Central Queensland University","https://ror.org/023q4bk22","Central Queensland University",auto
+"Charles Darwin University","https://ror.org/048zcaj52","Charles Darwin University",auto
+"Charles Sturt University","https://ror.org/00wfvh315","Charles Sturt University",auto
+"Curtin University of Technology","https://ror.org/02n415q13","Curtin University",auto
+"Deakin University","https://ror.org/02czsnj07","Deakin University",auto
+"Edith Cowan University","https://ror.org/05jhnwe22","Edith Cowan University",auto
+"Federation University Australia","https://ror.org/05qbzwv83","Federation University",manual
+"Griffith University","https://ror.org/02sc3r913","Griffith University",auto
+"James Cook University","https://ror.org/04gsp2c11","James Cook University",auto
+"La Trobe University","https://ror.org/01rxfrp27","La Trobe University",auto
+"Macquarie University","https://ror.org/01sf06y89","Macquarie University",auto
+"Monash University","https://ror.org/02bfwt286","Monash University",auto
+"Murdoch University","https://ror.org/00r4sry34","Murdoch University",auto
+"Queensland University of Technology","https://ror.org/03pnv4752","Queensland University of Technology",auto
+"RMIT University","https://ror.org/04ttjf776","RMIT University",auto
+"Southern Cross University","https://ror.org/001xkv632","Southern Cross University",auto
+"Swinburne University of Technology","https://ror.org/031rekg67","Swinburne University of Technology",auto
+"The Australian National University","https://ror.org/019wvm592","Australian National University",auto
+"The Flinders University of South Australia","https://ror.org/01kpzv902","Flinders University",auto
+"The University of Adelaide","https://ror.org/00892tw58","The University of Adelaide",auto
+"The University of Melbourne","https://ror.org/01ej9dk98","The University of Melbourne",auto
+"The University of New England","https://ror.org/04r659a56","University of New England",auto
+"The University of New South Wales","https://ror.org/03r8z3t63","UNSW Sydney",auto
+"The University of Newcastle","https://ror.org/00eae9z71","University of Newcastle Australia",manual
+"The University of Notre Dame Australia","https://ror.org/02stey378","The University of Notre Dame Australia",auto
+"The University of Queensland","https://ror.org/00rqy9422","The University of Queensland",auto
+"The University of Sydney","https://ror.org/0384j8v12","The University of Sydney",auto
+"The University of Western Australia","https://ror.org/047272k79","The University of Western Australia",auto
+"University of Canberra","https://ror.org/04s1nv328","University of Canberra",auto
+"University of Divinity","https://ror.org/02xn8bh65","University of Divinity",auto
+"University of South Australia","https://ror.org/01p93h210","University of South Australia",auto
+"University of Southern Queensland","https://ror.org/04sjbnx57","University of Southern Queensland",auto
+"University of Tasmania","https://ror.org/01nfmeh72","University of Tasmania",auto
+"University of Technology Sydney","https://ror.org/03f0f6041","University of Technology Sydney",auto
+"University of Wollongong","https://ror.org/00jtmb277","University of Wollongong",auto
+"University of the Sunshine Coast","https://ror.org/016gb9e15","University of the Sunshine Coast",auto
+"Victoria University","https://ror.org/04j757h98","Victoria University",auto
+"Western Sydney University","https://ror.org/03t52dk35","Western Sydney University",auto

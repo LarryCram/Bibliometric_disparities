@@ -1,0 +1,35 @@
+{
+  "_source": "ERA-SEER 2018 Technical Specifications, sections 3.3.8.1-3.3.8.5 (p.45-46), transcribed directly from the spec text, not inferred from the data",
+  "Original Creative Work": {
+    "1": "Visual art work",
+    "2": "Design / Architectural work",
+    "3": "Textual work",
+    "4": "Other"
+  },
+  "Live Performance": {
+    "1": "Music",
+    "2": "Play",
+    "3": "Dance",
+    "4": "Other"
+  },
+  "Recorded Rendered Work": {
+    "1": "Film, video",
+    "2": "Performance",
+    "3": "Inter-arts",
+    "4": "Digital creative work",
+    "5": "Website/ web exhibition",
+    "6": "Other"
+  },
+  "Curated Exhibition Event": {
+    "1": "Web-based exhibition work",
+    "2": "Exhibition/event",
+    "3": "Festival",
+    "4": "Other"
+  },
+  "Research Report for External Body": {
+    "1": "Public sector",
+    "2": "Industry",
+    "3": "Not for profit",
+    "4": "Other"
+  }
+}
