@@ -177,3 +177,5 @@ cython_debug/
 /data
 report/output/
 resources/*
+.tmp/
+*.tmp

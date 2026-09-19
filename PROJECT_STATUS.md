@@ -8,6 +8,7 @@ This document preserves the context, architectural decisions, and next steps fol
 3. **Harmonization & Test Validation**: 116 tests covering Olensky classification, string hygiene, field rules, and cross-HEP indel/truncation fixes are 100% passing.
 4. **Git Repository**: Initial baseline committed and pushed to `git@github.com:LarryCram/Bibliometric_disparities.git`.
 5. **Stage 4 Paper Artifact Generation (Tables & Figures)**: Formatted APA-style `.docx`, `.md`, and `.csv` tables generated via `report/generate_tables.py`, plus 300-DPI `.png` and vector `.pdf` publication figures generated via `report/generate_figures.py` (profiling ERA duplication gradient, HEP–HEP reporting disparities, Olensky IAC breakdown, and multi-institution collaboration distribution).
+6. **OpenAlex Preprocessing & Stage 2 Disparity Evaluation**: Implemented `src/era/sources/openalex/preprocess.py` (intra-OAX Olensky classification, lifecycle version drift, and pre-2012 ORCID back-propagation audit) and `src/era/matching/evaluate_disparities.py` (classifying 540,353 ERA-OpenAlex pairs into Olensky IAC categories). 143 tests passing.
 
 ## Active Roadmap
 1. **Canonical ERA Baseline (Stage 1 Harmonization)**:
