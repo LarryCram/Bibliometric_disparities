@@ -1,16 +1,19 @@
 """External Disparity Evaluator: Classify discrepancies between canonical ERA
 records and matched OpenAlex works using Olensky's (2015) IAC taxonomy.
 
-Disparities evaluated:
-  - Title: Exact match, Punctuation/Case (R), Cropped Subtitles (F),
-    Markup/HTML entities (Q), Single-character indels/typos (B), Discordant (D).
-  - Year: Identical, Off-by-1 (T), Off-by-2+ (T), Omitted (E).
-  - Identifier (DOI): Identical, Omission (E), Conflicting DOI (D).
-  - Unmatched Outputs: Unindexed in OpenAlex (Z) by output type.
+Provides two distinct analytical perspectives:
+  1. Submission-Level ($N = 540,353$): Evaluates each university's individual
+     submitted record against OpenAlex (capturing university-level reporting hygiene).
+  2. Canonical Work-Level ($N = 431,842$): Following Olensky's hand-coding
+     methodology, multi-HEP duplicate submissions are consolidated into a single
+     canonical ERA record per intellectual output before comparing to OpenAlex.
+  3. Institutional Divergence: Measures how often co-submitting universities
+     receive conflicting disparity classifications for the exact same paper.
 
 Outputs:
-  - data/era_openalex_disparities.parquet
-  - docs/openalex_disparity_review.md
+  - data/era_openalex_disparities.parquet (submission-level)
+  - data/era_openalex_canonical_disparities.parquet (canonical work-level)
+  - docs/openalex_disparity_review.md (comparative report)
 """
 
 import html
@@ -32,8 +35,8 @@ _SPACE_RE = re.compile(r"\s+")
 _DOI_PREFIX_RE = re.compile(r"^(https?://(dx\.)?doi\.org/|doi:\s*)", re.IGNORECASE)
 
 PAIRED_PARQUET = DATA_DIR / "era_openalex_paired_records.parquet"
-ERA_ALL_PARQUET = DATA_DIR / "era_research_outputs.parquet"
-OUTPUT_DISPARITIES_PARQUET = DATA_DIR / "era_openalex_disparities.parquet"
+SUBMISSION_DISPARITIES_PARQUET = DATA_DIR / "era_openalex_disparities.parquet"
+CANONICAL_DISPARITIES_PARQUET = DATA_DIR / "era_openalex_canonical_disparities.parquet"
 
 
 def normalize_doi(doi: str | None) -> str | None:
@@ -110,26 +113,8 @@ def classify_doi_disparity(d_era: str | None, d_oax: str | None) -> list[str]:
     return []
 
 
-def evaluate_all_disparities(
-    input_pq: Path = PAIRED_PARQUET,
-    output_pq: Path = OUTPUT_DISPARITIES_PARQUET,
-) -> dict[str, Any]:
-    """Evaluate and classify all paired ERA-OpenAlex records."""
-    t0 = time.time()
-    con = duckdb.connect()
-
-    print(f"Reading paired records from {input_pq}...")
-    rows = con.execute(f"""
-        SELECT id, openalex_id, research_output_type, match_type,
-               era_title, oax_title, era_year, oax_year, era_doi, oax_doi,
-               oax_type, oax_cited_by_count, match_source
-        FROM read_parquet('{input_pq}')
-    """).fetchall()
-    cols = [d[0] for d in con.description]
-
-    print(f"Loaded {len(rows):,} records ({time.time() - t0:.2f}s). Classifying disparities...")
-
-    processed_records = []
+def _process_records(rows, cols):
+    processed = []
     stats = {
         "total": len(rows),
         "exact_titles": 0,
@@ -160,7 +145,6 @@ def evaluate_all_disparities(
         rec["year_difference"] = y_diff
         rec["doi_olensky_codes"] = d_codes
 
-        # Accumulate stats
         if not t_codes:
             stats["exact_titles"] += 1
         elif "R" in t_codes:
@@ -192,63 +176,188 @@ def evaluate_all_disparities(
         elif "D" in d_codes:
             stats["doi_conflict"] += 1
 
-        processed_records.append(rec)
+        processed.append(rec)
 
-    # Persist as Parquet
-    print(f"Writing disparity dataset to {output_pq}...")
-    table = pa.Table.from_pylist(processed_records)
+    return processed, stats
+
+
+def evaluate_submission_disparities(
+    input_pq: Path = PAIRED_PARQUET,
+    output_pq: Path = SUBMISSION_DISPARITIES_PARQUET,
+) -> dict[str, Any]:
+    """Perspective 1: Evaluate each institutional submission individually."""
+    t0 = time.time()
+    con = duckdb.connect()
+
+    print(f"\n--- Perspective 1: Submission-Level Disparity Evaluation ---")
+    print(f"Reading paired records from {input_pq}...")
+    rows = con.execute(f"""
+        SELECT id, openalex_id, research_output_type, match_type,
+               era_title, oax_title, era_year, oax_year, era_doi, oax_doi,
+               oax_type, oax_cited_by_count, match_source
+        FROM read_parquet('{input_pq}')
+    """).fetchall()
+    cols = [d[0] for d in con.description]
+
+    print(f"Loaded {len(rows):,} records ({time.time() - t0:.2f}s). Classifying...")
+    processed, stats = _process_records(rows, cols)
+
+    table = pa.Table.from_pylist(processed)
     pq.write_table(table, output_pq, compression="snappy")
-    print(f"Saved {len(processed_records):,} classified records in {time.time() - t0:.2f}s!")
-
+    print(f"Saved {len(processed):,} submission records to {output_pq} ({time.time() - t0:.2f}s)!")
     return stats
 
 
-def generate_openalex_disparity_report(stats: dict[str, Any]) -> None:
-    """Generate markdown summary of OpenAlex disparity findings."""
+def evaluate_canonical_disparities(
+    input_pq: Path = PAIRED_PARQUET,
+    output_pq: Path = CANONICAL_DISPARITIES_PARQUET,
+) -> dict[str, Any]:
+    """Perspective 2: Canonical Work-Level (Olensky Hand-Coding style).
+    
+    Consolidates multi-HEP duplicate submissions into a single canonical ERA record
+    per distinct work before evaluating against OpenAlex.
+    """
+    t0 = time.time()
+    con = duckdb.connect()
+
+    print(f"\n--- Perspective 2: Canonical Work-Level Disparity Evaluation ---")
+    print(f"Consolidating multi-HEP records by openalex_id...")
+    q = f"""
+    SELECT 
+        openalex_id,
+        first(id) as representative_id,
+        count(*) as n_submissions,
+        mode(era_title) as era_title,
+        coalesce(mode(CASE WHEN era_doi IS NOT NULL AND trim(era_doi) != '' THEN era_doi END), NULL) as era_doi,
+        mode(era_year) as era_year,
+        first(oax_title) as oax_title,
+        first(oax_doi) as oax_doi,
+        first(oax_year) as oax_year,
+        first(research_output_type) as research_output_type,
+        first(oax_type) as oax_type,
+        first(oax_cited_by_count) as oax_cited_by_count,
+        first(match_type) as match_type
+    FROM read_parquet('{input_pq}')
+    GROUP BY openalex_id
+    """
+    rows = con.execute(q).fetchall()
+    cols = [d[0] for d in con.description]
+
+    print(f"Consolidated into {len(rows):,} distinct canonical works ({time.time() - t0:.2f}s). Classifying...")
+    processed, stats = _process_records(rows, cols)
+
+    table = pa.Table.from_pylist(processed)
+    pq.write_table(table, output_pq, compression="snappy")
+    print(f"Saved {len(processed):,} canonical work records to {output_pq} ({time.time() - t0:.2f}s)!")
+    return stats
+
+
+def evaluate_institutional_divergence(disparities_pq: Path = SUBMISSION_DISPARITIES_PARQUET) -> dict[str, Any]:
+    """Analyze how often co-submitting Australian universities receive conflicting
+    disparity classifications for the exact same intellectual work.
+    """
+    con = duckdb.connect()
+    q = f"""
+    WITH work_disp AS (
+        SELECT 
+            openalex_id,
+            count(*) as n_submissions,
+            count(DISTINCT title_disparity_label) as n_distinct_title_labels,
+            count(DISTINCT year_difference) as n_distinct_year_diffs,
+            count(DISTINCT CAST(doi_olensky_codes AS VARCHAR)) as n_distinct_doi_codes
+        FROM read_parquet('{disparities_pq}')
+        GROUP BY openalex_id
+        HAVING count(*) > 1
+    )
+    SELECT 
+        count(*) as multi_sub_works,
+        sum(case when n_distinct_title_labels > 1 then 1 else 0 end) as divergent_title_works,
+        round(100.0 * sum(case when n_distinct_title_labels > 1 then 1 else 0 end) / count(*), 1) as divergent_title_pct,
+        sum(case when n_distinct_year_diffs > 1 then 1 else 0 end) as divergent_year_works,
+        round(100.0 * sum(case when n_distinct_year_diffs > 1 then 1 else 0 end) / count(*), 1) as divergent_year_pct,
+        sum(case when n_distinct_doi_codes > 1 then 1 else 0 end) as divergent_doi_works,
+        round(100.0 * sum(case when n_distinct_doi_codes > 1 then 1 else 0 end) / count(*), 1) as divergent_doi_pct
+    FROM work_disp
+    """
+    r = con.execute(q).fetchone()
+    return {
+        "multi_sub_works": r[0],
+        "divergent_title_works": r[1],
+        "divergent_title_pct": r[2],
+        "divergent_year_works": r[3],
+        "divergent_year_pct": r[4],
+        "divergent_doi_works": r[5],
+        "divergent_doi_pct": r[6],
+    }
+
+
+def generate_openalex_disparity_report(sub_stats, canon_stats, div_stats) -> None:
+    """Generate comparative markdown summary contrasting Submission vs Canonical levels."""
     doc_path = PROJECT_ROOT / "docs" / "openalex_disparity_review.md"
-    n = stats["total"]
+    n_sub = sub_stats["total"]
+    n_can = canon_stats["total"]
 
-    md = f"""# Empirical OpenAlex Disparity Analysis & Olensky Classification
+    md = f"""# Empirical OpenAlex Disparity Analysis: Submission vs. Canonical Work Level
 
-Comprehensive evaluation of discrepancies between the Australian Excellence in Research for Australia (ERA) canonical dataset and matched OpenAlex outputs ($N = {n:,}$).
+Comparative evaluation of discrepancies between the Australian Excellence in Research for Australia (ERA) dataset and matched OpenAlex records across two analytical perspectives:
+  * **Perspective 1: Submission-Level** ($N = {n_sub:,}$ institutional submissions): Evaluates each university's submitted metadata individually against OpenAlex.
+  * **Perspective 2: Canonical Work-Level** ($N = {n_can:,}$ distinct intellectual works): Consolidates multi-HEP duplicate submissions into a single canonical ERA record before comparison (Olensky's hand-coding methodology).
 
-## 1. Title Disparities
+---
 
-Only **{stats['exact_titles']:,} ({stats['exact_titles']*100.0/n:.1f}%)** of matched titles are identical between ERA and OpenAlex. The remaining **{(n - stats['exact_titles'])*100.0/n:.1f}%** exhibit systematic Olensky inaccuracies:
+## 1. Title Disparities Comparison
 
-| Disparity Category | Olensky Code | Count ($N$) | Rate (%) | Description |
-| :--- | :---: | ---: | ---: | :--- |
-| Exact Title Match | — | {stats['exact_titles']:,} | {stats['exact_titles']*100.0/n:.1f}% | Character-for-character identical |
-| Punctuation & Casing | **R** | {stats['title_r']:,} | {stats['title_r']*100.0/n:.1f}% | Title case vs sentence case, hyphenation |
-| Cropped Subtitle | **F** | {stats['title_f']:,} | {stats['title_f']*100.0/n:.1f}% | Subtitle omitted in OpenAlex after colon/dash |
-| Typographical / Variant | **A** | {stats['title_a']:,} | {stats['title_a']*100.0/n:.1f}% | Spelling conventions (British vs American) |
-| Spelling Error / Indel | **B** | {stats['title_b']:,} | {stats['title_b']*100.0/n:.1f}% | Single-character insertion/deletion typos |
-| Markup / HTML Entities | **Q** | {stats['title_q']:,} | {stats['title_q']*100.0/n:.1f}% | Unescaped entities (`&amp;`, `&lt;`) or LaTeX |
-| Discordant / Mismatch | **D** | {stats['title_d']:,} | {stats['title_d']*100.0/n:.1f}% | Low token similarity (erroneous join) |
+| Disparity Category | Olensky Code | Submission Level ($N={n_sub:,}$) | Sub. Rate (%) | Canonical Work Level ($N={n_can:,}$) | Canon. Rate (%) |
+| :--- | :---: | ---: | ---: | ---: | ---: |
+| **Exact Title Match** | — | {sub_stats['exact_titles']:,} | {sub_stats['exact_titles']*100.0/n_sub:.1f}% | {canon_stats['exact_titles']:,} | {canon_stats['exact_titles']*100.0/n_can:.1f}% |
+| **Punctuation & Casing** | **R** | {sub_stats['title_r']:,} | {sub_stats['title_r']*100.0/n_sub:.1f}% | {canon_stats['title_r']:,} | {canon_stats['title_r']*100.0/n_can:.1f}% |
+| **Cropped Subtitle** | **F** | {sub_stats['title_f']:,} | {sub_stats['title_f']*100.0/n_sub:.1f}% | {canon_stats['title_f']:,} | {canon_stats['title_f']*100.0/n_can:.1f}% |
+| **Typographical / Variant** | **A** | {sub_stats['title_a']:,} | {sub_stats['title_a']*100.0/n_sub:.1f}% | {canon_stats['title_a']:,} | {canon_stats['title_a']*100.0/n_can:.1f}% |
+| **Spelling Error / Indel** | **B** | {sub_stats['title_b']:,} | {sub_stats['title_b']*100.0/n_sub:.1f}% | {canon_stats['title_b']:,} | {canon_stats['title_b']*100.0/n_can:.1f}% |
+| **Markup / HTML Entities** | **Q** | {sub_stats['title_q']:,} | {sub_stats['title_q']*100.0/n_sub:.1f}% | {canon_stats['title_q']:,} | {canon_stats['title_q']*100.0/n_can:.1f}% |
+| **Discordant / Mismatch** | **D** | {sub_stats['title_d']:,} | {sub_stats['title_d']*100.0/n_sub:.1f}% | {canon_stats['title_d']:,} | {canon_stats['title_d']*100.0/n_can:.1f}% |
+
+---
 
 ## 2. Publication Year Disparities (Olensky Code T)
 
-Publication year divergence between ERA reporting periods and OpenAlex indexing affects **{(stats['year_off1'] + stats['year_off2plus'])*100.0/n:.1f}%** of works:
+| Year Alignment | Submission Level ($N={n_sub:,}$) | Sub. Rate (%) | Canonical Work Level ($N={n_can:,}$) | Canon. Rate (%) |
+| :--- | ---: | ---: | ---: | ---: |
+| **Exact Year Agreement** | {sub_stats['year_exact']:,} | {sub_stats['year_exact']*100.0/n_sub:.1f}% | {canon_stats['year_exact']:,} | {canon_stats['year_exact']*100.0/n_can:.1f}% |
+| **Off by 1 Year ($\\pm 1$)** | {sub_stats['year_off1']:,} | {sub_stats['year_off1']*100.0/n_sub:.1f}% | {canon_stats['year_off1']:,} | {canon_stats['year_off1']*100.0/n_can:.1f}% |
+| **Off by 2+ Years ($\\ge 2$)** | {sub_stats['year_off2plus']:,} | {sub_stats['year_off2plus']*100.0/n_sub:.1f}% | {canon_stats['year_off2plus']:,} | {canon_stats['year_off2plus']*100.0/n_can:.1f}% |
 
-* **Exact Year Agreement**: {stats['year_exact']:,} ({stats['year_exact']*100.0/n:.1f}%)
-* **Off by 1 Year ($\\pm 1$)**: {stats['year_off1']:,} ({stats['year_off1']*100.0/n:.1f}%) — reflects advance online publication vs print volume dates.
-* **Off by 2+ Years ($\\ge 2$)**: {stats['year_off2plus']:,} ({stats['year_off2plus']*100.0/n:.1f}%) — reflects delayed institutional reporting or repository upload latency.
+---
 
 ## 3. Identifier (DOI) Disparities
 
-* **Exact Matching DOI**: {stats['doi_exact']:,} ({stats['doi_exact']*100.0/n:.1f}%)
-* **DOI Omission (Code E)**: {stats['doi_omission']:,} ({stats['doi_omission']*100.0/n:.1f}%) — output carries DOI in one source but omitted in the other.
-* **DOI Conflict (Code D)**: {stats['doi_conflict']:,} ({stats['doi_conflict']*100.0/n:.1f}%) — contradictory valid DOIs.
+| DOI Status | Submission Level ($N={n_sub:,}$) | Sub. Rate (%) | Canonical Work Level ($N={n_can:,}$) | Canon. Rate (%) |
+| :--- | ---: | ---: | ---: | ---: |
+| **Exact Matching DOI** | {sub_stats['doi_exact']:,} | {sub_stats['doi_exact']*100.0/n_sub:.1f}% | {canon_stats['doi_exact']:,} | {canon_stats['doi_exact']*100.0/n_can:.1f}% |
+| **DOI Omission (Code E)** | {sub_stats['doi_omission']:,} | {sub_stats['doi_omission']*100.0/n_sub:.1f}% | {canon_stats['doi_omission']:,} | {canon_stats['doi_omission']*100.0/n_can:.1f}% |
+| **DOI Conflict (Code D)** | {sub_stats['doi_conflict']:,} | {sub_stats['doi_conflict']*100.0/n_sub:.1f}% | {canon_stats['doi_conflict']:,} | {canon_stats['doi_conflict']*100.0/n_can:.1f}% |
+
+---
+
+## 4. Institutional Disparity Divergence across Co-Submitting HEPs
+
+Evaluated across the **{div_stats['multi_sub_works']:,} multi-HEP works** co-submitted by two or more Australian universities:
+
+* **Divergent Title Classifications**: **{div_stats['divergent_title_works']:,} works ({div_stats['divergent_title_pct']:.1f}%)** receive conflicting disparity ratings against OpenAlex depending on which university's submission is evaluated (e.g. University A matches exactly, while University B is flagged with Code R or Code F).
+* **Divergent DOI Classifications**: **{div_stats['divergent_doi_works']:,} works ({div_stats['divergent_doi_pct']:.1f}%)** have conflicting DOI presence across submitting universities (one university provides the DOI while another omits it).
+* **Divergent Year Classifications**: **{div_stats['divergent_year_works']:,} works ({div_stats['divergent_year_pct']:.1f}%)** have differing reference years reported across universities for the same publication.
 """
 
     with open(doc_path, "w", encoding="utf-8") as f:
         f.write(md)
-    print(f"Summary report written to {doc_path}")
+    print(f"\nComparative summary report written to {doc_path}")
 
 
 def main():
-    stats = evaluate_all_disparities()
-    generate_openalex_disparity_report(stats)
+    sub_stats = evaluate_submission_disparities()
+    canon_stats = evaluate_canonical_disparities()
+    div_stats = evaluate_institutional_divergence()
+    generate_openalex_disparity_report(sub_stats, canon_stats, div_stats)
 
 
 if __name__ == "__main__":
