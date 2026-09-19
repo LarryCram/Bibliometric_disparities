@@ -7,6 +7,7 @@ This document preserves the context, architectural decisions, and next steps fol
 2. **Packaging**: Standardized as an editable Python package `era-bibliometrics` (`pyproject.toml`), eliminating all `sys.path.insert` hacks.
 3. **Harmonization & Test Validation**: 116 tests covering Olensky classification, string hygiene, field rules, and cross-HEP indel/truncation fixes are 100% passing.
 4. **Git Repository**: Initial baseline committed and pushed to `git@github.com:LarryCram/Bibliometric_disparities.git`.
+5. **Stage 4 Paper Artifact Generation (Tables)**: Formatted APA-style `.docx`, `.md`, and `.csv` tables generated via `report/generate_tables.py` for insertion into manuscripts, profiling ERA output-type duplicates, cross-institution (HEP–HEP) reporting disparities, and Olensky (2015) IAC error distributions.
 
 ## Active Roadmap
 1. **Canonical ERA Baseline (Stage 1 Harmonization)**:
