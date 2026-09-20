@@ -6,6 +6,7 @@ from era.matching.evaluate_disparities import (
     classify_title_disparity,
     classify_year_disparity,
     classify_doi_disparity,
+    classify_disparity_profile,
 )
 
 
@@ -95,3 +96,56 @@ class TestClassifyDoiDisparity:
     def test_doi_conflict_code_d(self):
         codes = classify_doi_disparity("10.1007/s10509-012-1000-0", "10.1016/j.jneumeth.2012.01.001")
         assert codes == ["D"]
+
+
+class TestClassifyDisparityProfile:
+    def test_clean_profile(self):
+        profile, is_coupled = classify_disparity_profile([], 0, [])
+        assert profile == "clean"
+        assert is_coupled is False
+
+    def test_isolated_title_disparity(self):
+        profile, is_coupled = classify_disparity_profile(["R"], 0, [])
+        assert profile == "isolated_title_disp"
+        assert is_coupled is False
+
+    def test_isolated_year_disparity(self):
+        profile, is_coupled = classify_disparity_profile([], 1, [])
+        assert profile == "isolated_year_disp"
+        assert is_coupled is False
+
+    def test_isolated_doi_disparity(self):
+        profile, is_coupled = classify_disparity_profile([], 0, ["E"])
+        assert profile == "isolated_doi_disp"
+        assert is_coupled is False
+
+    def test_title_and_year_disparity(self):
+        profile, is_coupled = classify_disparity_profile(["F"], 2, [])
+        assert profile == "title_and_year_disp"
+        assert is_coupled is False
+
+    def test_title_and_doi_disparity(self):
+        profile, is_coupled = classify_disparity_profile(["B"], 0, ["D"])
+        assert profile == "title_and_doi_disp"
+        assert is_coupled is False
+
+    def test_coupled_lifecycle_drift_clean_title(self):
+        profile, is_coupled = classify_disparity_profile([], 1, ["D"])
+        assert profile == "coupled_lifecycle_drift"
+        assert is_coupled is True
+
+    def test_coupled_lifecycle_drift_with_title(self):
+        profile, is_coupled = classify_disparity_profile(["F"], 1, ["E"])
+        assert profile == "coupled_with_title_disp"
+        assert is_coupled is True
+
+    def test_missing_year_with_doi(self):
+        profile, is_coupled = classify_disparity_profile([], None, ["E"])
+        assert profile == "isolated_doi_disp"
+        assert is_coupled is False
+
+    def test_missing_year_with_title_and_doi(self):
+        profile, is_coupled = classify_disparity_profile(["R"], None, ["E"])
+        assert profile == "title_and_doi_disp"
+        assert is_coupled is False
+

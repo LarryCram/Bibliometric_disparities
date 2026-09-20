@@ -113,6 +113,57 @@ def classify_doi_disparity(d_era: str | None, d_oax: str | None) -> list[str]:
     return []
 
 
+def classify_disparity_profile(
+    title_codes: list[str],
+    year_diff: int | None,
+    doi_codes: list[str],
+) -> tuple[str, bool]:
+    """Classify the combined disparity profile and whether it exhibits coupled lifecycle drift.
+
+    Coupled lifecycle drift occurs when both publication year and DOI diverge simultaneously,
+    characteristic of multi-version preprint-to-published migration.
+
+    Profiles:
+      - 'clean': No title, year, or DOI disparities.
+      - 'isolated_title_disp': Title disparity only.
+      - 'isolated_year_disp': Year disparity only.
+      - 'isolated_doi_disp': DOI disparity only.
+      - 'title_and_year_disp': Title and year disparity (DOI clean).
+      - 'title_and_doi_disp': Title and DOI disparity (Year clean).
+      - 'coupled_lifecycle_drift': Coupled year and DOI disparity with clean title.
+      - 'coupled_with_title_disp': Coupled year and DOI disparity with title variation.
+
+    Returns:
+      tuple of (disparity_profile: str, is_coupled_lifecycle_drift: bool)
+    """
+    has_title = bool(title_codes)
+    has_year = bool(year_diff is not None and year_diff > 0)
+    has_doi = bool(doi_codes)
+
+    is_coupled = has_year and has_doi
+
+    if not has_title and not has_year and not has_doi:
+        profile = "clean"
+    elif is_coupled and not has_title:
+        profile = "coupled_lifecycle_drift"
+    elif is_coupled and has_title:
+        profile = "coupled_with_title_disp"
+    elif has_doi and not has_year and not has_title:
+        profile = "isolated_doi_disp"
+    elif has_year and not has_doi and not has_title:
+        profile = "isolated_year_disp"
+    elif has_title and not has_year and not has_doi:
+        profile = "isolated_title_disp"
+    elif has_title and has_year and not has_doi:
+        profile = "title_and_year_disp"
+    elif has_title and has_doi and not has_year:
+        profile = "title_and_doi_disp"
+    else:
+        profile = "other_combination"
+
+    return profile, is_coupled
+
+
 def _process_records(rows, cols):
     processed = []
     stats = {
@@ -131,6 +182,16 @@ def _process_records(rows, cols):
         "doi_exact": 0,
         "doi_omission": 0,
         "doi_conflict": 0,
+        "profile_clean": 0,
+        "profile_coupled_lifecycle_drift": 0,
+        "profile_coupled_with_title_disp": 0,
+        "profile_isolated_doi_disp": 0,
+        "profile_isolated_year_disp": 0,
+        "profile_isolated_title_disp": 0,
+        "profile_title_and_year_disp": 0,
+        "profile_title_and_doi_disp": 0,
+        "profile_other_combination": 0,
+        "coupled_lifecycle_drift_total": 0,
     }
 
     for r in rows:
@@ -144,6 +205,14 @@ def _process_records(rows, cols):
         rec["year_olensky_codes"] = y_codes
         rec["year_difference"] = y_diff
         rec["doi_olensky_codes"] = d_codes
+
+        profile, is_coupled = classify_disparity_profile(t_codes, y_diff, d_codes)
+        rec["is_coupled_lifecycle_drift"] = is_coupled
+        rec["disparity_profile"] = profile
+
+        stats[f"profile_{profile}"] += 1
+        if is_coupled:
+            stats["coupled_lifecycle_drift_total"] += 1
 
         if not t_codes:
             stats["exact_titles"] += 1
@@ -346,6 +415,22 @@ Evaluated across the **{div_stats['multi_sub_works']:,} multi-HEP works** co-sub
 * **Divergent Title Classifications**: **{div_stats['divergent_title_works']:,} works ({div_stats['divergent_title_pct']:.1f}%)** receive conflicting disparity ratings against OpenAlex depending on which university's submission is evaluated (e.g. University A matches exactly, while University B is flagged with Code R or Code F).
 * **Divergent DOI Classifications**: **{div_stats['divergent_doi_works']:,} works ({div_stats['divergent_doi_pct']:.1f}%)** have conflicting DOI presence across submitting universities (one university provides the DOI while another omits it).
 * **Divergent Year Classifications**: **{div_stats['divergent_year_works']:,} works ({div_stats['divergent_year_pct']:.1f}%)** have differing reference years reported across universities for the same publication.
+
+---
+
+## 5. Disparity Profiles & Coupled Lifecycle Drift Analysis
+
+| Disparity Profile | Description | Submission Level ($N={n_sub:,}$) | Sub. Rate (%) | Canonical Work Level ($N={n_can:,}$) | Canon. Rate (%) |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| **Clean (No Disparities)** | Exact title, year, and DOI agreement | {sub_stats['profile_clean']:,} | {sub_stats['profile_clean']*100.0/n_sub:.1f}% | {canon_stats['profile_clean']:,} | {canon_stats['profile_clean']*100.0/n_can:.1f}% |
+| **Isolated Title Disparity** | Title varies, year and DOI match | {sub_stats['profile_isolated_title_disp']:,} | {sub_stats['profile_isolated_title_disp']*100.0/n_sub:.1f}% | {canon_stats['profile_isolated_title_disp']:,} | {canon_stats['profile_isolated_title_disp']*100.0/n_can:.1f}% |
+| **Isolated Year Disparity** | Publication year off, title and DOI match | {sub_stats['profile_isolated_year_disp']:,} | {sub_stats['profile_isolated_year_disp']*100.0/n_sub:.1f}% | {canon_stats['profile_isolated_year_disp']:,} | {canon_stats['profile_isolated_year_disp']*100.0/n_can:.1f}% |
+| **Isolated DOI Disparity** | DOI omitted/conflicted, title and year match | {sub_stats['profile_isolated_doi_disp']:,} | {sub_stats['profile_isolated_doi_disp']*100.0/n_sub:.1f}% | {canon_stats['profile_isolated_doi_disp']:,} | {canon_stats['profile_isolated_doi_disp']*100.0/n_can:.1f}% |
+| **Coupled Lifecycle Drift** | Year and DOI diverge, title matches exactly | {sub_stats['profile_coupled_lifecycle_drift']:,} | {sub_stats['profile_coupled_lifecycle_drift']*100.0/n_sub:.1f}% | {canon_stats['profile_coupled_lifecycle_drift']:,} | {canon_stats['profile_coupled_lifecycle_drift']*100.0/n_can:.1f}% |
+| **Coupled Drift with Title Var.** | Year, DOI, and title all diverge | {sub_stats['profile_coupled_with_title_disp']:,} | {sub_stats['profile_coupled_with_title_disp']*100.0/n_sub:.1f}% | {canon_stats['profile_coupled_with_title_disp']:,} | {canon_stats['profile_coupled_with_title_disp']*100.0/n_can:.1f}% |
+| **Title & Year Disparity** | Title and year diverge, DOI matches | {sub_stats['profile_title_and_year_disp']:,} | {sub_stats['profile_title_and_year_disp']*100.0/n_sub:.1f}% | {canon_stats['profile_title_and_year_disp']:,} | {canon_stats['profile_title_and_year_disp']*100.0/n_can:.1f}% |
+| **Title & DOI Disparity** | Title and DOI diverge, year matches | {sub_stats['profile_title_and_doi_disp']:,} | {sub_stats['profile_title_and_doi_disp']*100.0/n_sub:.1f}% | {canon_stats['profile_title_and_doi_disp']:,} | {canon_stats['profile_title_and_doi_disp']*100.0/n_can:.1f}% |
+| **Total Coupled Lifecycle Drift** | All records where both year and DOI diverge ($Year > 0 \\land DOI \\ne Match$) | {sub_stats['coupled_lifecycle_drift_total']:,} | {sub_stats['coupled_lifecycle_drift_total']*100.0/n_sub:.1f}% | {canon_stats['coupled_lifecycle_drift_total']:,} | {canon_stats['coupled_lifecycle_drift_total']*100.0/n_can:.1f}% |
 """
 
     with open(doc_path, "w", encoding="utf-8") as f:
