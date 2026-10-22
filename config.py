@@ -37,15 +37,24 @@ DATA_PERSISTED_DIR = PROJECT_ROOT / "data_persisted"
 K_DRIVE = _drive_root("K_DRIVE", "~/k")
 M_DRIVE = _drive_root("M_DRIVE", "~/m")
 
-# Raw OpenAlex works snapshot (~676GB)
-RAW_OPENALEX_WORKS = K_DRIVE / "openalex_jul26/parquet/works"
+# OpenAlex Snapshot selection (default to openalex_oct26, configurable via .env / env var)
+OPENALEX_SNAPSHOT = (
+    _load_dotenv().get("OPENALEX_SNAPSHOT")
+    or os.environ.get("OPENALEX_SNAPSHOT")
+    or "openalex_oct26"
+)
+
+# Raw OpenAlex works snapshot (check M_DRIVE first, then K_DRIVE)
+_raw_m = M_DRIVE / f"{OPENALEX_SNAPSHOT}/parquet/works"
+_raw_k = K_DRIVE / f"{OPENALEX_SNAPSHOT}/parquet/works"
+RAW_OPENALEX_WORKS = _raw_m if _raw_m.exists() else _raw_k
 
 # Flattened OpenAlex works exports
-OPENALEX_COMPACT_WORKS = M_DRIVE / "openalex_jul26/parquet_converted/compact/works"
-OPENALEX_XPAC_WORKS = M_DRIVE / "openalex_jul26/parquet_converted/xpac/works"
+OPENALEX_COMPACT_WORKS = M_DRIVE / f"{OPENALEX_SNAPSHOT}/parquet_converted/compact/works"
+OPENALEX_XPAC_WORKS = M_DRIVE / f"{OPENALEX_SNAPSHOT}/parquet_converted/xpac/works"
 
 # OpenAlex's Institutions entity table
-OPENALEX_INSTITUTIONS = M_DRIVE / "openalex_jul26/parquet_converted/institutions.parquet"
+OPENALEX_INSTITUTIONS = M_DRIVE / f"{OPENALEX_SNAPSHOT}/parquet_converted/institutions.parquet"
 
 # DuckDB scratch/spill directory
 DUCKDB_TMP = M_DRIVE / "duckdb_tmp"

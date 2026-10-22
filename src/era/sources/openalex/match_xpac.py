@@ -17,10 +17,8 @@ import duckdb
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import OPENALEX_XPAC_WORKS, DUCKDB_TMP
+from era.config import OPENALEX_XPAC_WORKS, DUCKDB_TMP, DATA_DIR
 
-DATA_DIR = Path(__file__).parent.parent / "data"
 ERA_PARQUET = DATA_DIR / "era_research_outputs.parquet"
 PRIOR_MATCHES = DATA_DIR / "era_openalex_matches.parquet"
 OUTPUT_FILE = DATA_DIR / "era_openalex_xpac_matches.parquet"
