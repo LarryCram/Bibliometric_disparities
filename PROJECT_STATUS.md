@@ -15,17 +15,22 @@ This document preserves the context, architectural decisions, and next steps fol
    - Re-executed the end-to-end matching and hydration pipeline: `match_example.py` (530,978 compact matches), `match_xpac.py` (39,152 fallback matches), `urls.py` (452k works scanned for OA URLs across 1,898 partitions), and `match_openalex.py` (536,707 paired records).
    - Re-evaluated external disparities: exact canonical title agreement rose to 50.2%, discordant title errors dropped by >60% (from 1.1% in Jul26 down to 0.5% in Oct26), and coupled lifecycle drift remained consistent at 4.4%–4.9%.
 
+8. **Stage 1 Canonical ERA Baseline & Stage-C Combiner**:
+   - Built `StageCCombiner` in `src/era/harmonization/combiner.py` and exposed `ERAProcessor.build_canonical()`.
+   - Transitive clustering via connected components (DSU) across valid DOIs, valid WoS/MEDLINE identifiers, and safeguarded normalized titles (preventing spurious mergers of generic titles with conflicting DOIs).
+   - Reconciled all 567,647 raw ERA submissions into 455,741 distinct canonical research records in `data/era_research_outputs_canonical.parquet`.
+   - 100.0% of submissions mapped losslessly (`sum(len(source_ids)) == 567,647`), identifying 83,945 multi-HEP collaborative works and tracking cross-institution disparity events (Olensky codes E for DOI omissions, D for DOI conflicts, T for year differences, and title/outlet variances).
+   - Expanded test suite to 163 unit tests (100% passing).
+
 ## Active Roadmap
-1. **Canonical ERA Baseline (Stage 1 Harmonization)**:
-   - Run `era_processor.py` to produce deduplicated, canonical ERA research records across all multi-HEP submissions.
-2. **External Linkage & Matching Expansion (Stage 2)**:
+1. **External Linkage & Matching Expansion (Stage 2)**:
    - Match canonical ERA records against Scopus (`src/era/matching/match_scopus.py`).
    - Match canonical ERA records against Trove (`src/era/matching/match_trove.py`).
    - Evaluate and classify external mismatches using Olensky's (2015) IAC taxonomy across all indices.
-3. **Metrics & Downstream Analysis (Stage 3)**:
+2. **Metrics & Downstream Analysis (Stage 3)**:
    - Calculate cross-index coverage rates by ERA output type in `analysis/`.
    - Compute overlap Venn/UpSet metrics across ERA, OpenAlex, Scopus, and Trove.
    - Profile the frequency of Olensky inaccuracy codes (Type 1, 2, 3) across each index.
-4. **Paper Artifact Generation (Stage 4)**:
-   - Update `report/generate_tables.py` and `report/generate_figures.py` to reflect Oct26 data and the dual-perspective / coupled drift profiles.
+3. **Paper Artifact Generation (Stage 4)**:
+   - Update `report/generate_tables.py` and `report/generate_figures.py` to reflect Oct26 data, the canonical ERA baseline, and the dual-perspective / coupled drift profiles.
 

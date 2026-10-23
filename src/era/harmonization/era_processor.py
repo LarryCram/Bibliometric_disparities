@@ -157,6 +157,7 @@ class ERAProcessor:
     RAW_BATCH_SIZE = 50_000
 
     PROCESSED_PARQUET = DATA_DIR / "era_research_outputs_processed.parquet"
+    CANONICAL_PARQUET = DATA_DIR / "era_research_outputs_canonical.parquet"
 
     PROCESSED_SCHEMA = pa.schema([
         ("id", pa.int64()),
@@ -594,15 +595,29 @@ class ERAProcessor:
         print(f"Flagged {n_flagged} truncated values (F), repaired {n_repaired} via unique-prefix match.")
         print(f"Rewrote {cls.PROCESSED_PARQUET}")
 
+    @classmethod
+    def build_canonical(cls):
+        """Stage C combiner: Reconcile multi-HEP submissions into canonical
+        ERAResearchRecord outputs, writing era_research_outputs_canonical.parquet.
+        """
+        from era.harmonization.combiner import StageCCombiner
+        return StageCCombiner.combine_records(
+            processed_pq=cls.PROCESSED_PARQUET,
+            raw_pq=cls.RAW_PARQUET,
+            output_pq=cls.CANONICAL_PARQUET,
+        )
+
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("build-raw", "build-processed"):
-        print("Usage: era_processor.py build-raw|build-processed")
+    if len(sys.argv) != 2 or sys.argv[1] not in ("build-raw", "build-processed", "build-canonical"):
+        print("Usage: era_processor.py build-raw|build-processed|build-canonical")
         sys.exit(1)
     if sys.argv[1] == "build-raw":
         ERAProcessor.build_raw()
-    else:
+    elif sys.argv[1] == "build-processed":
         ERAProcessor.build_processed()
+    else:
+        ERAProcessor.build_canonical()
 
 
 if __name__ == "__main__":
