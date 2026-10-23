@@ -61,13 +61,11 @@ from pathlib import Path
 
 import duckdb
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import SCOPUS_DIR
+from era.config import DATA_DIR, SCOPUS_DIR, PROJECT_ROOT
 
-DATA_DIR = Path(__file__).parent.parent / "data"
 ERA_PARQUET = DATA_DIR / "era_research_outputs.parquet"
 DOI_LIST_DIR = DATA_DIR / "scopus_doi_lists"
-ENV_FILE = Path(__file__).parent.parent / ".env"
+ENV_FILE = PROJECT_ROOT / ".env"
 
 BATCH_SIZE = 25  # Search COMPLETE view's page size - see module docstring
 VIEW = "COMPLETE"

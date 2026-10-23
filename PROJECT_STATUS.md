@@ -21,10 +21,19 @@ This document preserves the context, architectural decisions, and next steps fol
    - Reconciled all 567,647 raw ERA submissions into 455,741 distinct canonical research records in `data/era_research_outputs_canonical.parquet`.
    - 100.0% of submissions mapped losslessly (`sum(len(source_ids)) == 567,647`), identifying 83,945 multi-HEP collaborative works and tracking cross-institution disparity events (Olensky codes E for DOI omissions, D for DOI conflicts, T for year differences, and title/outlet variances).
    - Expanded test suite to 163 unit tests (100% passing).
+9. **Stage 2 Scopus Linkage & Olensky Disparity Profiling**:
+   - Built `src/era/matching/match_scopus.py` implementing tiered DOI and normalized title fallback matching against 303,618 cached Scopus records (2011–2016).
+   - Matched 293,482 canonical ERA works (64.4% overall coverage), spanning 78.3% of Journal Articles, 33.0% of Conference Publications, 17.6% of Book Chapters, and 9.1% of Books.
+   - Classified discrepancies via Olensky's taxonomy: 93.9% punctuation/case variants (code R), 3.7% typographical (code A), 2.0% spelling indels (code B), and 0.26% discordant (code D).
+   - Generated `data/era_scopus_canonical_matches.parquet` and `data/era_scopus_disparities.parquet`. Unit test suite expanded to 172 tests (100% passing).
+10. **Scopus Title Search & Adaptive Backoff Infrastructure**:
+   - Created `src/era/sources/scopus/fetch_titles.py` with adaptive exponential backoff and jitter, integrated seamlessly with `pybliometrics`' on-disk cache on K_DRIVE.
+   - Built `src/era/sources/scopus/build_title_shard.py` to compile cached title searches into `data/scopus_records/titles.parquet`.
+   - Established that 20.2% of canonical ERA Journal Articles lacked DOIs, and empirical sampling revealed ~35% of these non-DOI works are indexed in Scopus and recoverable via title search without weekly quota limits under institutional tokens.
+   - Test suite expanded to 180 unit tests (100% passing).
 
 ## Active Roadmap
 1. **External Linkage & Matching Expansion (Stage 2)**:
-   - Match canonical ERA records against Scopus (`src/era/matching/match_scopus.py`).
    - Match canonical ERA records against Trove (`src/era/matching/match_trove.py`).
    - Evaluate and classify external mismatches using Olensky's (2015) IAC taxonomy across all indices.
 2. **Metrics & Downstream Analysis (Stage 3)**:
@@ -32,5 +41,5 @@ This document preserves the context, architectural decisions, and next steps fol
    - Compute overlap Venn/UpSet metrics across ERA, OpenAlex, Scopus, and Trove.
    - Profile the frequency of Olensky inaccuracy codes (Type 1, 2, 3) across each index.
 3. **Paper Artifact Generation (Stage 4)**:
-   - Update `report/generate_tables.py` and `report/generate_figures.py` to reflect Oct26 data, the canonical ERA baseline, and the dual-perspective / coupled drift profiles.
+   - Update `report/generate_tables.py` and `report/generate_figures.py` to reflect Oct26 data, the canonical ERA baseline, Scopus matches, and the dual-perspective / coupled drift profiles.
 

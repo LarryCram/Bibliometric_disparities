@@ -22,13 +22,12 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-sys.path.insert(0, str(Path(__file__).parent))
-from fetch_scopus_records import (
+from era.config import DATA_DIR
+from era.sources.scopus.fetch import (
     init_pybliometrics, doi_list_for_year, batches, batch_query,
     cache_path_for_query, parse_doc, VIEW,
 )
 
-DATA_DIR = Path(__file__).parent.parent / "data"
 SHARD_DIR = DATA_DIR / "scopus_records"
 
 

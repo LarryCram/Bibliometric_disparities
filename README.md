@@ -25,18 +25,22 @@ Bibliometric_disparities/
 │       │
 │       ├── harmonization/         # ERA data cleaning and multi-HEP record reconciliation
 │       │   ├── era_processor.py   # ERAProcessor factory, cluster indel fixes, and truncation repairs
+│       │   ├── combiner.py        # Stage-C multi-HEP deduplication & canonical record combiner
 │       │   ├── duplicates.py      # Cross-institution duplicate detection and group analysis
 │       │   ├── download_era_outputs.py
 │       │   └── convert_to_parquet.py
 │       │
 │       ├── sources/               # External source connectors and shard builders
 │       │   ├── openalex/          # Snapshot matching, URLs, locations, authorships
-│       │   ├── scopus/            # Scopus API fetcher and parquet shard compiler
+│       │   ├── scopus/            # Scopus DOI/title fetchers, backoff engine, and shard compilers
 │       │   ├── wos/               # Web of Science API fetcher and normalizer
 │       │   ├── trove/             # Trove ISBN matcher, title search, and portfolio item fetchers
 │       │   └── fulltext/          # PDF downloaders, landing page scrapers, GROBID/TEI parser
 │       │
 │       ├── matching/              # Matching canonical ERA outputs to external indexes
+│       │   ├── match_openalex.py  # OpenAlex work hydration & paired record generation
+│       │   ├── match_scopus.py    # Scopus tiered DOI & title matching with Olensky evaluation
+│       │   └── evaluate_disparities.py # Olensky disparity evaluator & coupled drift profiler
 │       └── provenance.py          # Pipeline provenance tracking
 │
 ├── analysis/                      # Research metrics & cross-source tables
