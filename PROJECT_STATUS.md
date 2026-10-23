@@ -26,10 +26,11 @@ This document preserves the context, architectural decisions, and next steps fol
    - Matched 293,482 canonical ERA works (64.4% overall coverage), spanning 78.3% of Journal Articles, 33.0% of Conference Publications, 17.6% of Book Chapters, and 9.1% of Books.
    - Classified discrepancies via Olensky's taxonomy: 93.9% punctuation/case variants (code R), 3.7% typographical (code A), 2.0% spelling indels (code B), and 0.26% discordant (code D).
    - Generated `data/era_scopus_canonical_matches.parquet` and `data/era_scopus_disparities.parquet`. Unit test suite expanded to 172 tests (100% passing).
-10. **Scopus Title Search & Adaptive Backoff Infrastructure**:
-   - Created `src/era/sources/scopus/fetch_titles.py` with adaptive exponential backoff and jitter, integrated seamlessly with `pybliometrics`' on-disk cache on K_DRIVE.
+10. **Scopus Title Search & Detached Background Harvesting Pipeline**:
+   - Created `src/era/sources/scopus/fetch_titles.py` with adaptive exponential backoff and jitter, query sanitization (HTML tag stripping, wildcard suppression), integrated seamlessly with `pybliometrics`' on-disk cache on K_DRIVE.
    - Built `src/era/sources/scopus/build_title_shard.py` to compile cached title searches into `data/scopus_records/titles.parquet`.
-   - Established that 20.2% of canonical ERA Journal Articles lacked DOIs, and empirical sampling revealed ~35% of these non-DOI works are indexed in Scopus and recoverable via title search without weekly quota limits under institutional tokens.
+   - Established that 20.2% of canonical ERA Journal Articles lacked DOIs, and empirical sampling revealed ~40–50% of these non-DOI works are indexed in Scopus and recoverable via title search without weekly quota limits under institutional tokens.
+   - Automated execution via detached runner `run_scopus_harvest.sh` managed as a persistent systemd user service (`scopus-harvest.service`) surviving IDE disconnects.
    - Test suite expanded to 180 unit tests (100% passing).
 
 ## Active Roadmap

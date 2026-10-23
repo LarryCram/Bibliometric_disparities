@@ -39,17 +39,21 @@ from era.sources.scopus.fetch import (
 
 CANONICAL_PQ = DATA_DIR / "era_research_outputs_canonical.parquet"
 
-_CLEAN_PUNCT_RE = re.compile(r'[\"{}\\]')
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_CLEAN_PUNCT_RE = re.compile(r'[\"{}\\\?\*]')
 _SPACE_RE = re.compile(r"\s+")
 
 
 def clean_title_for_scopus_query(title: str | None) -> str:
-    """Sanitize title for Scopus TITLE(...) query syntax."""
+    """Sanitize title for Scopus TITLE(...) query syntax.
+    
+    Strips HTML tags, internal quotes, curly braces, backslashes, and wildcards (? and *).
+    """
     if not title:
         return ""
     u = html.unescape(str(title))
-    # Remove internal double quotes, curly braces, and backslashes that break query parser
-    c = _CLEAN_PUNCT_RE.sub(" ", u)
+    t = _HTML_TAG_RE.sub(" ", u)
+    c = _CLEAN_PUNCT_RE.sub(" ", t)
     return _SPACE_RE.sub(" ", c).strip()
 
 
@@ -74,9 +78,9 @@ def execute_title_search_with_backoff(
         status_str in: 'cached_hit', 'cached_miss', 'api_hit', 'api_miss', 'syntax_error', 'max_retries_exceeded'
     """
     from pybliometrics.exception import (
+        Scopus400Error,
         Scopus429Error,
         ScopusServerError,
-        ScopusHtmlError,
         ScopusQueryError,
     )
 
@@ -99,12 +103,12 @@ def execute_title_search_with_backoff(
             time.sleep(polite_delay)
             return s, ("api_hit" if count > 0 else "api_miss")
 
-        except ScopusQueryError as e:
-            # Query translation syntax error (e.g. malformed title string)
-            # Not retryable - log and return immediately
+        except (ScopusQueryError, Scopus400Error) as e:
+            # Query translation syntax error or malformed input
+            # Permanent client error: do not retry
             return None, f"syntax_error: {e}"
 
-        except (Scopus429Error, ScopusServerError, ScopusHtmlError, Timeout, ConnectionError, RequestException) as e:
+        except (Scopus429Error, ScopusServerError, Timeout, ConnectionError, RequestException) as e:
             err_name = type(e).__name__
             if attempt < max_retries - 1:
                 # Exponential backoff with full jitter
