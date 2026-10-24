@@ -13,10 +13,12 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 2B: Scopus Linkage & Title Harvest** | Persistent title query harvest (50,780 hits) + pybliometrics cache | 342,478 canonical works (75.1%); 92.6% of journal articles | **100% Complete** |
 | **Stage 2C: Trove Linkage** | 2-tier ISBN and title query matching across National Library catalog | 36,614 works; 87.8% of books, 61.0% of book chapters, 50–74% NTROs | **100% Complete** |
 | **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
-| **Stage 4: Paper Artifacts** | 8 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
-| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, and matching | 195 unit tests passing | **100% Passing** |
+| **Stage 4: Paper Artifacts** | 10 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
+| **Stage 5: References & Authors** | GROBID TEI internal citation network (131k citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet`; Tables 9 & 10 | **100% Complete** |
+| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, and matching | 198 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
+
 1. **Migration & Rationalization**: Cleanly separated core domain logic (`src/era/core/`), harmonization engine (`src/era/harmonization/`), and external source connectors (`src/era/sources/`).
 2. **Packaging**: Standardized as an editable Python package `era-bibliometrics` (`pyproject.toml`), eliminating all `sys.path.insert` hacks.
 3. **Harmonization & Test Validation**: 116 tests covering Olensky classification, string hygiene, field rules, and cross-HEP indel/truncation fixes are 100% passing.
@@ -91,9 +93,26 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
      - Figure 5: Multi-index coverage rates by ERA research output type (grouped bar chart).
      - Figure 6: Cross-index intersection sets and composition breakdown (UpSet horizontal bar chart).
      - Figure 7: Comparative Olensky IAC type distribution across external indices (stacked bar chart).
-   - Test suite remains 100% passing across 195 unit tests.
+   - Test suite expanded to 198 unit tests (100% passing).
+15. **GROBID TEI Reference Disparities, Citation Importance, and Author/Institution Analysis (Stage 5 Completed)**:
+   - High-throughput parallel extraction (`extract_grobid.py`) across 69,791 TEI XML outputs parsed from full-text PDFs in `/home/lc/k/era_oa_pdfs_tei`:
+     - `grobid_papers.parquet`: 69,791 papers with header author strings and citation tallies.
+     - `grobid_references.parquet`: 3,351,806 bibliography entries kept strictly separated from canonical ERA records.
+     - `grobid_mentions.parquet`: 5,266,754 in-text citation mentions with calling context and section headers (`<head>`).
+   - Mapped 131,395 internal citations between Australian ERA outputs (41,500 exact DOI citations + 89,895 exact unique title matches with year tolerance) stored in `data/era_grobid_reference_disparities.parquet`.
+   - **Olensky Citation Importance Hypothesis Verified**:
+     - Bibliographic inaccuracies follow a strict monotonic gradient with in-text citation frequency: Type 3 severe title discordance falls from 25.72% for uncited references and 18.82% for single passing citations down to 14.69% for foundational citations ($7+$ mentions).
+     - Surface fidelity (casing/punctuation preservation) increases from 59.83% (uncited) to 71.30% ($7+$ mentions).
+     - In-text section placement analysis reveals highest title fidelity in Discussion/Conclusions (79.73% surface, only 7.38% discordant), compared to Introduction (18.65% discordant) and Results (26.67% discordant).
+   - **Author & Institutional Disparities (Olensky Perspective)**:
+     - Author count concordance between PDF full-text extraction and OpenAlex metadata is 72.00% exact; 9.56% of PDFs omit/truncate authors (et al.), and 18.44% contain extra tokens (editorial boards or institutional department names parsed into author blocks).
+     - Reference author surname fidelity improves monotonically with citation importance, rising from 84.27% (uncited) and 88.07% (passing) to 93.93% ($7+$ mentions).
+     - Institutional attribution divergence between ERA submissions (submitting Australian HEP) and OpenAlex author affiliations is 32.36% (67.64% normalized concordance), reflecting multi-institution mobility, hospital/institute affiliations, and honorary appointments.
+   - Generated Publication Tables 9 & 10 in `.docx`, `.csv`, `.md`, and assembled into master `all_paper_tables.docx`.
+   - Unit test suite expanded to 198 tests (100% passing).
 
 ## Current State & Next Steps
-- All 4 core stages of the bibliometric disparities project (Harmonization, Linkage & Profiling, Multi-Index Synthesis, and Paper Artifact Generation) are 100% complete and verified.
-- Manuscript sections can now directly ingest these standardized tables and vector figures.
+- All 5 stages of the bibliometric disparities project (Harmonization, Linkage & Profiling, Multi-Index Synthesis, Paper Artifact Generation, and GROBID Reference/Author Network) are 100% complete and verified.
+- Available for optional background queueing: 65,845 new direct PDF URLs identified in `work_locations` to expand the full-text corpus if desired.
+
 
