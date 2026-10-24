@@ -1,6 +1,6 @@
 # Bibliometric Disparities: ERA vs OpenAlex, Scopus & Trove
 
-Research pipeline and analysis comparing how ARC ERA-reported research outputs are indexed and described across OpenAlex, Scopus, Web of Science, and Trove (National Library of Australia). 
+Research pipeline and analysis comparing how ARC ERA-reported research outputs are indexed and described across OpenAlex, Scopus, Web of Science, and Trove (National Library of Australia).
 
 The project separates:
 1. **Reporter-side disparities**: Variations that arise from how different Australian Higher Education Providers (HEPs) report the same underlying research outputs to ERA (whitespace hygiene, punctuation, truncated strings from institutional CRIS systems, and missing/divergent DOIs).
@@ -8,9 +8,11 @@ The project separates:
 
 Discrepancies are systematically evaluated and classified using **Olensky's (2015) Taxonomy of Bibliographic Inaccuracies**.
 
+---
+
 ## Architecture (`src/` Layout)
 
-The codebase is organized as a Python package (`era`) with clear domain boundaries:
+The codebase is organized as an editable Python package (`era`):
 
 ```text
 Bibliometric_disparities/
@@ -40,24 +42,59 @@ Bibliometric_disparities/
 │       ├── matching/              # Matching canonical ERA outputs to external indexes
 │       │   ├── match_openalex.py  # OpenAlex work hydration & paired record generation
 │       │   ├── match_scopus.py    # Scopus tiered DOI & title matching with Olensky evaluation
+│       │   ├── match_trove.py     # Trove tiered ISBN & candidate title matching with Olensky profiling
 │       │   └── evaluate_disparities.py # Olensky disparity evaluator & coupled drift profiler
-│       └── provenance.py          # Pipeline provenance tracking
+│       │
+│       └── analysis/              # Multi-index synthesis & downstream coverage metrics
+│           ├── multi_index_coverage.py   # Canonical OpenAlex rollup & synthesis dataset builder
+│           ├── comparative_olensky.py    # Cross-index Olensky IAC taxonomy synthesis
+│           └── run_stage3.py             # Stage 3 orchestration runner
 │
-├── analysis/                      # Research metrics & cross-source tables
-│   ├── build_era_institution_ror_lookup.py
-│   └── era_institution_ror_lookup.csv
-│
-├── report/                        # Publication artifacts (Word .docx tables & 300-DPI figures)
+├── report/                        # Publication artifacts (8 APA Word/CSV/MD tables & 7 vector figures)
+│   ├── generate_tables.py         # Word docx, CSV, and markdown table generator
+│   ├── generate_figures.py        # 300-DPI PNG and vector PDF figure generator
 │   └── output/
-│       ├── figures/
-│       └── tables/
+│       ├── figures/               # 7 publication figures (PDF + PNG)
+│       └── tables/                # 8 APA publication tables (DOCX + CSV + MD)
 │
 ├── data_persisted/                # Curated reference assets (ERA Journal List, SEER vocabularies)
-├── docs/                          # Methodology papers and setup guides (era_quality_review.md)
-└── tests/                         # Unit tests mirroring src/era/
+├── docs/                          # Methodology reports and analysis summaries
+└── tests/                         # 195 unit tests (100% passing)
 ```
 
-## Setup
+---
+
+## End-to-End Pipeline Milestones
+
+1. **Stage 1: Canonical ERA Baseline Reconcilation (`combiner.py`)**
+   - Transitive connected component clustering over DOIs, WoS/MEDLINE IDs, and safeguarded titles.
+   - Reconciled 567,647 raw ERA submissions into **455,741 distinct canonical research records** (`era_research_outputs_canonical.parquet`).
+   - Identified 83,945 multi-HEP collaborative works and tracked cross-institution reporting disparities.
+
+2. **Stage 2: External Index Linkage & Disparity Profiling**
+   - **OpenAlex (Oct26)**: Matched 427,882 canonical works (93.9%). Recovered 5,200 non-journal works via XPAC.
+   - **Scopus**: Executed detached title-harvest for non-DOI works (68,774 queries, 73.8% hit rate). Total matched canonical works surged from 293,482 (64.4%) to **342,478 (75.1%)**, with Journal Article coverage reaching **92.6%**.
+   - **Trove**: Matched 36,614 works across books and NTROs (**87.8%** of Books, **61.0%** of Chapters, **74.3%** of Exhibitions, **73.4%** of Reports).
+   - **Multi-DOI Work Locations**: Demonstrated that cross-HEP conflicting DOIs (Olensky code D) resolve into the identical OpenAlex work via `work_locations`.
+
+3. **Stage 3: Multi-Index Downstream Synthesis (`era.analysis`)**
+   - Combined all four sources into `data/era_multi_index_synthesis.parquet`.
+   - **Multi-Index Union**: Indexes **95.73%** (436,273 works) of all Australian academic outputs:
+     - Journal Articles: **98.5%**
+     - Books: **97.3%**
+     - Conference Publications: **90.5%**
+     - Book Chapters: **87.5%**
+     - Research Reports: **82.1%**
+     - Curated Exhibitions: **79.4%**
+   - Profiled comparative Olensky inaccuracies across indices: OpenAlex (49.6% exact, 0.44% discordant), Scopus (94.8% punctuation/case, 0.22% discordant), Trove (79.5% punctuation/case, 11.4% typo, 4.9% cropped subtitles, 3.89% discordant).
+
+4. **Stage 4: Paper Artifact Generation (`report/`)**
+   - Generated 8 APA publication tables (`report/generate_tables.py`).
+   - Generated 7 publication figures (`report/generate_figures.py`).
+
+---
+
+## Setup & Execution
 
 ```bash
 python3 -m venv .venv
@@ -66,14 +103,18 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Copy `.env.example` to `.env` and set your external drive roots and API keys:
+### Running Tests
 ```bash
-cp .env.example .env
+pytest
 ```
 
-## Running Tests
-
-Run the unit test suite across the core classification rules and processors:
+### Running Stage 3 Synthesis
 ```bash
-pytest tests/
+python -m era.analysis.run_stage3
+```
+
+### Generating Paper Tables and Figures
+```bash
+python report/generate_tables.py
+python report/generate_figures.py
 ```
