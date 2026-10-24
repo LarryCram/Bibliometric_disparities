@@ -1,0 +1,14 @@
+[Unit]
+Description=Scopus Title Harvest Pipeline for ERA Non-DOI Works
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/lc/Projects_Antigravity/Bibliometric_disparities
+ExecStart=/home/lc/Projects_Antigravity/Bibliometric_disparities/run_scopus_harvest.sh
+StandardOutput=append:/home/lc/Projects_Antigravity/Bibliometric_disparities/scopus_service.log
+StandardError=append:/home/lc/Projects_Antigravity/Bibliometric_disparities/scopus_service.log
+Restart=no
+
+[Install]
+WantedBy=default.target

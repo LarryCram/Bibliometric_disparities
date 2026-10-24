@@ -32,15 +32,24 @@ This document preserves the context, architectural decisions, and next steps fol
    - Established that 20.2% of canonical ERA Journal Articles lacked DOIs, and empirical sampling revealed ~40–50% of these non-DOI works are indexed in Scopus and recoverable via title search without weekly quota limits under institutional tokens.
    - Automated execution via detached runner `run_scopus_harvest.sh` managed as a persistent systemd user service (`scopus-harvest.service`) surviving IDE disconnects.
    - Test suite expanded to 180 unit tests (100% passing).
+11. **Stage 2 Trove Linkage & Book/NTRO Disparity Profiling**:
+   - Built `src/era/matching/match_trove.py` implementing two-tier matching: Tier 1 normalized ISBN matching against 4,827 Trove book records, and Tier 2 candidate title search matching via unnested submission IDs (`source_ids`) across 78,233 candidate records.
+   - Matched 36,614 distinct canonical works, dramatically bridging the coverage gap for non-journal outputs:
+     - **Books**: **87.8% matched** (4,494 of 5,117 canonical books, compared to only 9.1% in Scopus).
+     - **Book Chapters**: **61.0% matched** (26,324 of 43,150 chapters, compared to only 17.6% in Scopus).
+     - **Research Reports**: **73.4% matched** (2,355 of 3,208).
+     - **Curated Exhibitions**: **74.3% matched** (405 of 545).
+     - **Recorded Rendered Works**: **62.4% matched** (518 of 830).
+     - **Original Creative Works**: **53.7% matched** (2,081 of 3,877).
+     - **Live Performances**: **50.0% matched** (413 of 826).
+   - Classified bibliographic discrepancies via Olensky's IAC taxonomy: 79.5% punctuation/case (code R), 11.4% typographical (code A), 4.9% cropped subtitles (code F), and 3.9% discordant (code D).
+   - Generated `data/era_trove_canonical_matches.parquet` and `data/era_trove_disparities.parquet`. Unit test suite expanded to 193 tests (100% passing).
 
 ## Active Roadmap
-1. **External Linkage & Matching Expansion (Stage 2)**:
-   - Match canonical ERA records against Trove (`src/era/matching/match_trove.py`).
-   - Evaluate and classify external mismatches using Olensky's (2015) IAC taxonomy across all indices.
-2. **Metrics & Downstream Analysis (Stage 3)**:
-   - Calculate cross-index coverage rates by ERA output type in `analysis/`.
-   - Compute overlap Venn/UpSet metrics across ERA, OpenAlex, Scopus, and Trove.
-   - Profile the frequency of Olensky inaccuracy codes (Type 1, 2, 3) across each index.
-3. **Paper Artifact Generation (Stage 4)**:
-   - Update `report/generate_tables.py` and `report/generate_figures.py` to reflect Oct26 data, the canonical ERA baseline, Scopus matches, and the dual-perspective / coupled drift profiles.
+1. **Metrics & Downstream Analysis (Stage 3)**:
+   - Calculate multi-index coverage rates by ERA output type across ERA, OpenAlex, Scopus, and Trove in `src/era/analysis/`.
+   - Compute cross-index intersection and UpSet metrics (e.g. ERA-only vs OpenAlex ∩ Scopus ∩ Trove).
+   - Profile comparative Olensky inaccuracy distributions across each index.
+2. **Paper Artifact Generation (Stage 4)**:
+   - Update `report/generate_tables.py` and `report/generate_figures.py` to reflect Oct26 data, the canonical ERA baseline, Scopus title harvest, Trove coverage, and dual-perspective / coupled drift profiles.
 
