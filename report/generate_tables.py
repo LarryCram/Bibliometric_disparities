@@ -1,6 +1,16 @@
 """Generate formatted publication-quality tables (.docx, .md, .csv) for the
-bibliometric disparities manuscript based on the ERA dataset and Olensky (2015)
-inaccuracy classification.
+bibliometric disparities manuscript based on the canonical ERA dataset,
+Olensky (2015) inaccuracy classification, and multi-index synthesis (ERA, OpenAlex, Scopus, Trove).
+
+Tables:
+  1. Record counts, canonical works, and multi-HEP submissions across ERA output types.
+  2. Cross-institution (HEP-HEP) reporting disparities within co-submitted works.
+  3. Inventory and incidence of Olensky (2015) Inaccuracy and Inconsistency Codes (IAC) in ERA.
+  4. Distribution of Australian Higher Education Provider (HEP) co-submissions.
+  5. Multi-index coverage by research output type (Compact, XPAC, OpenAlex Total, Scopus, Trove, Union).
+  6. Cross-index intersection breakdown and UpSet overlap matrix.
+  7. Comparative external Olensky inaccuracy profiles across OpenAlex, Scopus, and Trove.
+  8. Coupled lifecycle drift vs isolated reporting errors profile.
 """
 
 from pathlib import Path
@@ -10,7 +20,7 @@ import docx
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
+from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import OxmlElement, parse_xml
 from docx.oxml.ns import qn, nsdecls
 
@@ -22,6 +32,13 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERA_PARQUET = DATA_DIR / "era_research_outputs.parquet"
 DUPLICATES_PARQUET = DATA_DIR / "era_cross_institution_duplicates.parquet"
 PROCESSED_PARQUET = DATA_DIR / "era_research_outputs_processed.parquet"
+CANONICAL_PARQUET = DATA_DIR / "era_research_outputs_canonical.parquet"
+SYNTHESIS_PARQUET = DATA_DIR / "era_multi_index_synthesis.parquet"
+OA_MATCHES_PARQUET = DATA_DIR / "era_openalex_matches.parquet"
+OA_XPAC_PARQUET = DATA_DIR / "era_openalex_xpac_matches.parquet"
+OA_DISPARITIES_PARQUET = DATA_DIR / "era_openalex_disparities.parquet"
+SCOPUS_DISPARITIES_PARQUET = DATA_DIR / "era_scopus_disparities.parquet"
+TROVE_DISPARITIES_PARQUET = DATA_DIR / "era_trove_disparities.parquet"
 
 
 def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
@@ -46,7 +63,6 @@ def set_cell_shading(cell, color_hex="F2F4F7"):
 def apply_apa_table_borders(table):
     """Apply standard academic APA table borders: top, bottom, and header bottom lines."""
     tblPr = table._tbl.tblPr
-    # Remove existing borders if any
     for child in list(tblPr):
         if child.tag.endswith('tblBorders'):
             tblPr.remove(child)
@@ -124,7 +140,7 @@ def style_table_data_row(row, is_total=False):
 
 
 def add_table_title_and_notes(doc, table_num, title, note_text=None):
-    """Add standardized publication table header and notes."""
+    """Add standardized publication table header."""
     p_num = doc.add_paragraph()
     p_num.paragraph_format.space_before = Pt(12)
     p_num.paragraph_format.space_after = Pt(2)
@@ -213,48 +229,32 @@ def write_csv_and_md(filename_stem, headers, rows, title, note_text):
 
 
 # ==============================================================================
-# Table 1: Output Type Counts and Duplicate Records in the ERA Dataset
+# Table 1: Canonical Works, Submissions, and Duplication Gradient
 # ==============================================================================
 def generate_table1(con):
     q = f"""
-    WITH norm AS (
-        SELECT research_output_type, trim(lower(title)) as norm_title
-        FROM read_parquet('{ERA_PARQUET}')
-        WHERE title IS NOT NULL AND trim(title) != ''
-    ),
-    title_counts AS (
-        SELECT research_output_type, norm_title, count(*) as c
-        FROM norm
-        GROUP BY 1, 2
-    ),
-    cross_hep AS (
-        SELECT research_output_type, count(DISTINCT norm_title) as n_cross_works, count(*) as n_cross_recs
-        FROM read_parquet('{DUPLICATES_PARQUET}')
-        GROUP BY 1
-    )
     SELECT 
-        tc.research_output_type,
-        sum(tc.c) as total_records,
-        count(tc.norm_title) as distinct_titles,
-        sum(case when tc.c > 1 then tc.c - 1 else 0 end) as duplicate_records,
-        round(100.0 * sum(case when tc.c > 1 then tc.c - 1 else 0 end) / sum(tc.c), 1) as dup_rate,
-        COALESCE(ch.n_cross_works, 0) as cross_hep_works,
-        COALESCE(ch.n_cross_recs, 0) as cross_hep_submissions
-    FROM title_counts tc
-    LEFT JOIN cross_hep ch USING (research_output_type)
-    GROUP BY tc.research_output_type, ch.n_cross_works, ch.n_cross_recs
-    ORDER BY total_records DESC
+        COALESCE(research_output_type, 'Unknown') as rtype,
+        SUM(n_submissions) as total_submissions,
+        COUNT(*) as canonical_works,
+        SUM(n_submissions - 1) as duplicate_submissions,
+        ROUND(SUM(n_submissions - 1) * 100.0 / SUM(n_submissions), 1) as dup_rate,
+        SUM(is_multi_hep::INT) as multi_hep_works,
+        ROUND(SUM(is_multi_hep::INT) * 100.0 / COUNT(*), 1) as multi_hep_rate
+    FROM read_parquet('{CANONICAL_PARQUET}')
+    GROUP BY 1
+    ORDER BY total_submissions DESC
     """
     data = con.execute(q).fetchall()
-    
+
     headers = [
         "ERA Output Type",
-        "Total Records",
-        "Distinct Titles",
-        "Duplicate Records",
-        "Duplicate Rate (%)",
+        "Total Submissions",
+        "Canonical Works",
+        "Duplicate Submissions",
+        "Duplication Rate (%)",
         "Multi-HEP Works",
-        "Multi-HEP Submissions",
+        "Multi-HEP Share (%)",
     ]
     aligns = [
         WD_ALIGN_PARAGRAPH.LEFT,
@@ -265,16 +265,15 @@ def generate_table1(con):
         WD_ALIGN_PARAGRAPH.RIGHT,
         WD_ALIGN_PARAGRAPH.RIGHT,
     ]
-    widths = [2.2, 0.9, 0.9, 1.0, 0.9, 0.9, 1.0]
+    widths = [2.2, 1.1, 1.1, 1.2, 1.1, 1.1, 1.1]
 
     rows = []
-    tot_rec = tot_distinct = tot_dup = tot_cw = tot_cs = 0
+    tot_sub = tot_canon = tot_dup = tot_multi = 0
     for r in data:
-        tot_rec += r[1]
-        tot_distinct += r[2]
+        tot_sub += r[1]
+        tot_canon += r[2]
         tot_dup += r[3]
-        tot_cw += r[5]
-        tot_cs += r[6]
+        tot_multi += r[5]
         rows.append([
             r[0],
             f"{r[1]:,}",
@@ -282,30 +281,31 @@ def generate_table1(con):
             f"{r[3]:,}",
             f"{r[4]:.1f}%",
             f"{r[5]:,}",
-            f"{r[6]:,}",
+            f"{r[6]:.1f}%",
         ])
-    overall_dup_rate = round(100.0 * tot_dup / tot_rec, 1)
+    overall_dup_rate = round(100.0 * tot_dup / tot_sub, 1)
+    overall_multi_rate = round(100.0 * tot_multi / tot_canon, 1)
     rows.append([
         "Total",
-        f"{tot_rec:,}",
-        f"{tot_distinct:,}",
+        f"{tot_sub:,}",
+        f"{tot_canon:,}",
         f"{tot_dup:,}",
         f"{overall_dup_rate:.1f}%",
-        f"{tot_cw:,}",
-        f"{tot_cs:,}",
+        f"{tot_multi:,}",
+        f"{overall_multi_rate:.1f}%",
     ])
 
-    title = "Record Counts, Distinct Titles, and Duplicate Multi-HEP Submissions Across ERA Output Types"
+    title = "Submission Counts, Reconciled Canonical Works, and Duplication Gradients Across ERA Output Types"
     notes = (
-        "Dataset comprises all ERA research outputs submitted across the 2011–2016 reference-year window (N = 567,647). "
-        "Distinct titles are defined by identical lower-cased, whitespace-trimmed title within the same output type. "
-        "Multi-HEP Works denote distinct intellectual outputs submitted by two or more Australian universities (group_n_institutions > 1)."
+        "Dataset comprises all 567,647 ERA research outputs (2011–2016 reference period) reconciled via transitive "
+        "connected component clustering into 455,741 distinct canonical works. "
+        "Multi-HEP Works denote distinct intellectual works independently submitted by two or more Australian universities."
     )
     return headers, rows, aligns, widths, title, notes
 
 
 # ==============================================================================
-# Table 2: Cross-Institution (HEP–HEP) Reporting Disparities within Co-Submitted Works
+# Table 2: Cross-Institution (HEP–HEP) Reporting Disparities
 # ==============================================================================
 def generate_table2(con):
     q = f"""
@@ -399,18 +399,17 @@ def generate_table2(con):
 
     title = "Cross-Institution (HEP–HEP) Reporting Disparities within Multi-Institution Co-Submitted Works"
     notes = (
-        "Evaluated across all 72,749 research works independently submitted to ERA by two or more Australian universities (167,564 submissions). "
-        "Title Disparity: co-submitting HEPs supplied differing raw title strings (punctuation, spacing, casing, or markup) for the identical output. "
-        "DOI Omission (Olensky Code E): at least one institution reported a valid DOI while another co-submitting institution left the DOI blank. "
-        "DOI Conflict (Olensky Code D): institutions reported conflicting valid DOIs for the same work. "
-        "Year Disparity (Olensky Code T): institutions reported different reference years (e.g., online advance vs print publication year). "
-        "Outlet Disparity: differing journal, conference, or publisher name strings across institutions."
+        "Evaluated across multi-institution collaborative works submitted independently by two or more Australian universities. "
+        "Title Disparity: co-submitting HEPs supplied differing raw title strings. "
+        "DOI Omission (Code E): one HEP reported a valid DOI while another left it blank. "
+        "DOI Conflict (Code D): HEPs reported conflicting DOIs for the same work. "
+        "Year Disparity (Code T): HEPs reported different reference years."
     )
     return headers, rows, aligns, widths, title, notes
 
 
 # ==============================================================================
-# Table 3: Olensky (2015) Inaccuracy & Inconsistency Codes in the ERA Dataset
+# Table 3: Olensky (2015) Inaccuracy Codes in the Internal ERA Dataset
 # ==============================================================================
 def generate_table3(con):
     q = f"""
@@ -436,7 +435,6 @@ def generate_table3(con):
     """
     db_codes = {r[0]: (r[1], r[2]) for r in con.execute(q).fetchall()}
 
-    # Olensky taxonomy metadata
     code_definitions = [
         ("K", "Space", "Type 1", "Simple / Added", "Extra, missing, or irregular whitespace runs", "title, outlet, publisher, conference, doi"),
         ("R", "Punctuation", "Type 1", "Simple / Added", "Differing punctuation characters, hyphens, and case variants", "title, publisher, outlet, issn, conference"),
@@ -473,20 +471,20 @@ def generate_table3(con):
 
     rows = []
     TOTAL_ERA = 567647
-    MULTI_HEP_WORKS = 72749
+    MULTI_HEP_WORKS = 83945
 
     for code, name, iac_type, grp, desc, fields_str in code_definitions:
         if code in db_codes:
             incidents = db_codes[code][0]
             pct = incidents * 100.0 / TOTAL_ERA
         elif code == "T":
-            incidents = 1814  # from Table 2 group stats
+            incidents = 1814
             pct = incidents * 100.0 / MULTI_HEP_WORKS
         elif code == "E":
-            incidents = 23301  # from Table 2 group stats
+            incidents = 23301
             pct = incidents * 100.0 / MULTI_HEP_WORKS
         elif code == "D":
-            incidents = 1411  # from Table 2 group stats
+            incidents = 1411
             pct = incidents * 100.0 / MULTI_HEP_WORKS
         else:
             incidents = 0
@@ -508,8 +506,8 @@ def generate_table3(con):
     notes = (
         "Taxonomy established by Olensky (2015). Type 1: Simple inaccuracies (field contains correct value in full); "
         "Type 2: Moderate inaccuracies (field contains part of correct value); Type 3: Complex inaccuracies (field does not contain correct value). "
-        "Codes K, R, S, B, Q, F reflect self-cleaning and cross-HEP reconciliation across all 567,647 records; "
-        "Codes T, E, D reflect relational discrepancies across the 72,749 co-submitted multi-HEP works."
+        "Codes K, R, S, B, Q, F reflect string hygiene across all 567,647 records; "
+        "Codes T, E, D reflect relational discrepancies across collaborative multi-HEP works."
     )
     return headers, rows, aligns, widths, title, notes
 
@@ -519,21 +517,21 @@ def generate_table3(con):
 # ==============================================================================
 def generate_table4(con):
     q = f"""
-    WITH distinct_groups AS (
-        SELECT DISTINCT norm_title, research_output_type, group_n_institutions, group_n_records
-        FROM read_parquet('{DUPLICATES_PARQUET}')
+    WITH multi AS (
+        SELECT len(institutions) as n_inst, n_submissions
+        FROM read_parquet('{CANONICAL_PARQUET}')
+        WHERE is_multi_hep = TRUE
     )
     SELECT 
-        group_n_institutions,
+        n_inst,
         count(*) as n_works,
-        sum(group_n_records) as total_submissions
-    FROM distinct_groups
+        sum(n_submissions) as total_submissions
+    FROM multi
     GROUP BY 1
     ORDER BY 1
     """
     raw_data = con.execute(q).fetchall()
 
-    # Aggregate: 2, 3, 4, 5, 6-10, 11+
     buckets = {
         "2": [0, 0],
         "3": [0, 0],
@@ -559,7 +557,7 @@ def generate_table4(con):
         elif 6 <= n_inst <= 10:
             buckets["6 to 10"][0] += n_works
             buckets["6 to 10"][1] += n_subs
-        else:
+        elif n_inst >= 11:
             buckets["11 or more"][0] += n_works
             buckets["11 or more"][1] += n_subs
 
@@ -611,30 +609,408 @@ def generate_table4(con):
 
     title = "Distribution of Australian Higher Education Provider (HEP) Co-Submissions per Distinct Research Output"
     notes = (
-        "Reflects all distinct intellectual outputs submitted by two or more institutions in the ERA 2011–2016 collection. "
+        "Reflects all 83,945 distinct intellectual outputs submitted by two or more institutions in the canonical ERA 2011–2016 collection. "
         "Average submissions per work can exceed the number of distinct institutions due to intra-institutional multi-department submissions."
+    )
+    return headers, rows, aligns, widths, title, notes
+
+
+# ==============================================================================
+# Table 5: Multi-Index Coverage by ERA Research Output Type
+# ==============================================================================
+def generate_table5(con):
+    q = f"""
+    WITH canon_unnested AS (
+        SELECT canonical_id, research_output_type, UNNEST(source_ids) AS sid
+        FROM read_parquet('{CANONICAL_PARQUET}')
+    ),
+    compact_m AS (
+        SELECT DISTINCT id FROM read_parquet('{OA_MATCHES_PARQUET}') WHERE openalex_id IS NOT NULL
+    ),
+    xpac_m AS (
+        SELECT DISTINCT id FROM read_parquet('{OA_XPAC_PARQUET}') WHERE openalex_id IS NOT NULL
+    ),
+    oa_flags AS (
+        SELECT 
+            c.canonical_id,
+            BOOL_OR(cp.id IS NOT NULL) AS in_compact,
+            BOOL_OR(xp.id IS NOT NULL) AS in_xpac
+        FROM canon_unnested c
+        LEFT JOIN compact_m cp ON c.sid = cp.id
+        LEFT JOIN xpac_m xp ON c.sid = xp.id
+        GROUP BY c.canonical_id
+    )
+    SELECT 
+        COALESCE(s.research_output_type, 'Unknown') AS output_type,
+        COUNT(*) AS total_canonical,
+        SUM(o.in_compact::INT) AS n_compact,
+        ROUND(SUM(o.in_compact::INT) * 100.0 / COUNT(*), 1) AS pct_compact,
+        SUM((NOT o.in_compact AND o.in_xpac)::INT) AS n_xpac_gain,
+        ROUND(SUM((NOT o.in_compact AND o.in_xpac)::INT) * 100.0 / COUNT(*), 1) AS pct_xpac_gain,
+        SUM(s.in_openalex::INT) AS n_oa,
+        ROUND(SUM(s.in_openalex::INT) * 100.0 / COUNT(*), 1) AS pct_oa,
+        SUM(s.in_scopus::INT) AS n_scopus,
+        ROUND(SUM(s.in_scopus::INT) * 100.0 / COUNT(*), 1) AS pct_scopus,
+        SUM(s.in_trove::INT) AS n_trove,
+        ROUND(SUM(s.in_trove::INT) * 100.0 / COUNT(*), 1) AS pct_trove,
+        SUM(s.in_any_index::INT) AS n_union,
+        ROUND(SUM(s.in_any_index::INT) * 100.0 / COUNT(*), 1) AS pct_union,
+        SUM((s.coverage_category = 'ERA Only')::INT) AS n_era_only,
+        ROUND(SUM((s.coverage_category = 'ERA Only')::INT) * 100.0 / COUNT(*), 1) AS pct_era_only
+    FROM read_parquet('{SYNTHESIS_PARQUET}') s
+    LEFT JOIN oa_flags o USING (canonical_id)
+    GROUP BY 1
+    ORDER BY total_canonical DESC
+    """
+    data = con.execute(q).fetchall()
+
+    headers = [
+        "ERA Output Type",
+        "Canonical",
+        "OA Compact",
+        "XPAC Gain",
+        "OpenAlex Total",
+        "Scopus",
+        "Trove",
+        "Union (Any)",
+        "ERA Only",
+    ]
+    aligns = [
+        WD_ALIGN_PARAGRAPH.LEFT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+    ]
+    widths = [1.8, 0.8, 0.9, 0.8, 1.0, 0.9, 0.9, 1.0, 0.8]
+
+    rows = []
+    tot_can = tot_cp = tot_xp = tot_oa = tot_sc = tot_tr = tot_un = tot_eo = 0
+    for r in data:
+        tot_can += r[1]
+        tot_cp += r[2]
+        tot_xp += r[4]
+        tot_oa += r[6]
+        tot_sc += r[8]
+        tot_tr += r[10]
+        tot_un += r[12]
+        tot_eo += r[14]
+        rows.append([
+            r[0],
+            f"{r[1]:,}",
+            f"{r[2]:,} ({r[3]}%)",
+            f"{r[4]:,} ({r[5]}%)",
+            f"{r[6]:,} ({r[7]}%)",
+            f"{r[8]:,} ({r[9]}%)",
+            f"{r[10]:,} ({r[11]}%)",
+            f"{r[12]:,} ({r[13]}%)",
+            f"{r[14]:,} ({r[15]}%)",
+        ])
+
+    rows.append([
+        "Total",
+        f"{tot_can:,}",
+        f"{tot_cp:,} ({tot_cp*100.0/tot_can:.1f}%)",
+        f"{tot_xp:,} ({tot_xp*100.0/tot_can:.1f}%)",
+        f"{tot_oa:,} ({tot_oa*100.0/tot_can:.1f}%)",
+        f"{tot_sc:,} ({tot_sc*100.0/tot_can:.1f}%)",
+        f"{tot_tr:,} ({tot_tr*100.0/tot_can:.1f}%)",
+        f"{tot_un:,} ({tot_un*100.0/tot_can:.1f}%)",
+        f"{tot_eo:,} ({tot_eo*100.0/tot_can:.1f}%)",
+    ])
+
+    title = "Multi-Index Bibliometric Coverage by Output Type Across OpenAlex (Compact & XPAC), Scopus, and Trove"
+    notes = (
+        "Evaluated against all 455,741 canonical ERA research outputs (2011–2016). "
+        "OA Compact: matches from OpenAlex compact works export. XPAC Gain: net incremental works recovered via extended xpac export. "
+        "Scopus: matches post-title harvest. Trove: matches via ISBN and candidate title harvest. "
+        "Union: distinct works indexed by at least one external index."
+    )
+    return headers, rows, aligns, widths, title, notes
+
+
+# ==============================================================================
+# Table 6: Cross-Index Intersections (UpSet Overlap Matrix)
+# ==============================================================================
+def generate_table6(con):
+    q = f"""
+    SELECT 
+        coverage_category,
+        COUNT(*) AS work_count,
+        ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM read_parquet('{SYNTHESIS_PARQUET}')), 2) AS pct_total,
+        SUM((research_output_type = 'Journal Article')::INT) AS n_journal_articles,
+        SUM((research_output_type = 'Conference Publication')::INT) AS n_conferences,
+        SUM((research_output_type IN ('Book', 'Book Chapter'))::INT) AS n_books_chapters,
+        SUM((research_output_type NOT IN ('Journal Article', 'Conference Publication', 'Book', 'Book Chapter'))::INT) AS n_ntro
+    FROM read_parquet('{SYNTHESIS_PARQUET}')
+    GROUP BY 1
+    ORDER BY work_count DESC
+    """
+    data = con.execute(q).fetchall()
+
+    headers = [
+        "Coverage Category",
+        "Total Works",
+        "Share (%)",
+        "Journal Articles",
+        "Conference Pubs",
+        "Books & Chapters",
+        "NTRO Outputs",
+    ]
+    aligns = [
+        WD_ALIGN_PARAGRAPH.LEFT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+    ]
+    widths = [2.0, 1.0, 0.9, 1.1, 1.1, 1.1, 1.0]
+
+    rows = []
+    tot_w = tot_j = tot_c = tot_b = tot_n = 0
+    for r in data:
+        tot_w += r[1]
+        tot_j += r[3]
+        tot_c += r[4]
+        tot_b += r[5]
+        tot_n += r[6]
+        rows.append([
+            r[0],
+            f"{r[1]:,}",
+            f"{r[2]:.2f}%",
+            f"{r[3]:,}",
+            f"{r[4]:,}",
+            f"{r[5]:,}",
+            f"{r[6]:,}",
+        ])
+
+    rows.append([
+        "Total",
+        f"{tot_w:,}",
+        "100.00%",
+        f"{tot_j:,}",
+        f"{tot_c:,}",
+        f"{tot_b:,}",
+        f"{tot_n:,}",
+    ])
+
+    title = "Cross-Index Disjoint Intersection Breakdown (UpSet Overlap Matrix)"
+    notes = (
+        "Mutually exclusive categorization of all 455,741 canonical ERA works based on their presence in OpenAlex, Scopus, and Trove. "
+        "NTRO Outputs include Creative Works, Research Reports, Recorded Rendered Works, Live Performances, and Curated Exhibitions."
+    )
+    return headers, rows, aligns, widths, title, notes
+
+
+# ==============================================================================
+# Table 7: Comparative External Olensky Inaccuracy Profiles
+# ==============================================================================
+def generate_table7(con):
+    q = f"""
+    WITH oa AS (
+        SELECT 
+            'OpenAlex' AS source,
+            COUNT(*) AS total_matched,
+            SUM((title_disparity_label = 'exact')::INT) AS n_exact,
+            SUM((title_disparity_label = 'punctuation_or_case')::INT) AS n_punctuation,
+            SUM((title_disparity_label = 'typographical_variant')::INT) AS n_typo,
+            SUM((title_disparity_label = 'spelling_indel')::INT) AS n_indel,
+            SUM((title_disparity_label = 'cropped_subtitle')::INT) AS n_cropped,
+            SUM((title_disparity_label = 'discordant')::INT) AS n_discordant,
+            ROUND(SUM((title_disparity_label IN ('exact', 'punctuation_or_case', 'markup_or_entity'))::INT) * 100.0 / COUNT(*), 2) AS pct_type1,
+            ROUND(SUM((title_disparity_label IN ('typographical_variant', 'spelling_indel', 'cropped_subtitle'))::INT) * 100.0 / COUNT(*), 2) AS pct_type2,
+            ROUND(SUM((title_disparity_label IN ('discordant', 'omitted'))::INT) * 100.0 / COUNT(*), 2) AS pct_type3
+        FROM read_parquet('{OA_DISPARITIES_PARQUET}')
+    ),
+    scopus AS (
+        SELECT 
+            'Scopus' AS source,
+            COUNT(*) AS total_matched,
+            SUM((title_disparity_label = 'exact')::INT) AS n_exact,
+            SUM((title_disparity_label = 'punctuation_or_case')::INT) AS n_punctuation,
+            SUM((title_disparity_label = 'typographical_variant')::INT) AS n_typo,
+            SUM((title_disparity_label = 'spelling_indel')::INT) AS n_indel,
+            SUM((title_disparity_label = 'cropped_subtitle')::INT) AS n_cropped,
+            SUM((title_disparity_label = 'discordant')::INT) AS n_discordant,
+            ROUND(SUM((title_disparity_label IN ('exact', 'punctuation_or_case', 'markup_or_entity'))::INT) * 100.0 / COUNT(*), 2) AS pct_type1,
+            ROUND(SUM((title_disparity_label IN ('typographical_variant', 'spelling_indel', 'cropped_subtitle'))::INT) * 100.0 / COUNT(*), 2) AS pct_type2,
+            ROUND(SUM((title_disparity_label IN ('discordant', 'omitted'))::INT) * 100.0 / COUNT(*), 2) AS pct_type3
+        FROM read_parquet('{SCOPUS_DISPARITIES_PARQUET}')
+    ),
+    trove AS (
+        SELECT 
+            'Trove' AS source,
+            COUNT(*) AS total_matched,
+            SUM((title_disparity_label = 'exact')::INT) AS n_exact,
+            SUM((title_disparity_label = 'punctuation_or_case')::INT) AS n_punctuation,
+            SUM((title_disparity_label = 'typographical_variant')::INT) AS n_typo,
+            SUM((title_disparity_label = 'spelling_indel')::INT) AS n_indel,
+            SUM((title_disparity_label = 'cropped_subtitle')::INT) AS n_cropped,
+            SUM((title_disparity_label = 'discordant')::INT) AS n_discordant,
+            ROUND(SUM((title_disparity_label IN ('exact', 'punctuation_or_case', 'markup_or_entity'))::INT) * 100.0 / COUNT(*), 2) AS pct_type1,
+            ROUND(SUM((title_disparity_label IN ('typographical_variant', 'spelling_indel', 'cropped_subtitle'))::INT) * 100.0 / COUNT(*), 2) AS pct_type2,
+            ROUND(SUM((title_disparity_label IN ('discordant', 'omitted'))::INT) * 100.0 / COUNT(*), 2) AS pct_type3
+        FROM read_parquet('{TROVE_DISPARITIES_PARQUET}')
+    )
+    SELECT * FROM oa UNION ALL SELECT * FROM scopus UNION ALL SELECT * FROM trove
+    """
+    data = con.execute(q).fetchall()
+
+    headers = [
+        "Index Source",
+        "Matched Works",
+        "Exact (%)",
+        "Punct/Case (%)",
+        "Typo (%)",
+        "Indel (%)",
+        "Cropped (%)",
+        "Discordant (%)",
+        "Type 1 (Surface)",
+        "Type 2 (Textual)",
+        "Type 3 (Severe)",
+    ]
+    aligns = [
+        WD_ALIGN_PARAGRAPH.LEFT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+    ]
+    widths = [1.2, 0.9, 0.8, 0.9, 0.7, 0.7, 0.8, 0.8, 0.9, 0.9, 0.9]
+
+    rows = []
+    for r in data:
+        rows.append([
+            r[0],
+            f"{r[1]:,}",
+            f"{r[2]*100.0/r[1]:.2f}%",
+            f"{r[3]*100.0/r[1]:.2f}%",
+            f"{r[4]*100.0/r[1]:.2f}%",
+            f"{r[5]*100.0/r[1]:.2f}%",
+            f"{r[6]*100.0/r[1]:.2f}%",
+            f"{r[7]*100.0/r[1]:.2f}%",
+            f"{r[8]:.2f}%",
+            f"{r[9]:.2f}%",
+            f"{r[10]:.2f}%",
+        ])
+
+    title = "Comparative External Olensky Inaccuracy Classification Profiles Across OpenAlex, Scopus, and Trove"
+    notes = (
+        "Evaluated using Olensky's (2015) Inaccuracy Classification (IAC) framework. "
+        "Type 1 (Surface): Exact matches, punctuation, and casing transformations (preserves full semantic value). "
+        "Type 2 (Textual): Typographical errors, spelling insertions/deletions, and cropped subtitles. "
+        "Type 3 (Severe): Discordant titles and omitted records."
+    )
+    return headers, rows, aligns, widths, title, notes
+
+
+# ==============================================================================
+# Table 8: Coupled Lifecycle Drift vs Isolated Reporting Errors
+# ==============================================================================
+def generate_table8(con):
+    q = f"""
+    SELECT 
+        disparity_profile,
+        COUNT(*) as count,
+        ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as pct,
+        SUM(is_coupled_lifecycle_drift::INT) as n_coupled
+    FROM read_parquet('{OA_DISPARITIES_PARQUET}')
+    GROUP BY 1
+    ORDER BY count DESC
+    """
+    data = con.execute(q).fetchall()
+
+    headers = [
+        "Disparity Profile",
+        "Classification Nature",
+        "Submissions (N)",
+        "Share (%)",
+        "Coupled Drift Submissions",
+    ]
+    aligns = [
+        WD_ALIGN_PARAGRAPH.LEFT,
+        WD_ALIGN_PARAGRAPH.LEFT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+    ]
+    widths = [2.2, 2.2, 1.2, 1.0, 1.4]
+
+    profile_labels = {
+        "clean": ("Fully Concordant Baseline", "Exact match across title, year, and DOI"),
+        "isolated_title_disp": ("Isolated Title Variation", "Punctuation/casing differences without identifier or year drift"),
+        "title_and_doi_disp": ("Title & DOI Discrepancy", "Differing DOI and title variance"),
+        "isolated_year_disp": ("Isolated Year Drift", "Reporting year vs actual publication year (+/- 1-2 years)"),
+        "title_and_year_disp": ("Title & Year Variation", "Non-DOI title and year variance"),
+        "isolated_doi_disp": ("Isolated Identifier Disparity", "DOI omitted or formatted differently with matching title"),
+        "coupled_with_title_disp": ("Coupled Lifecycle Drift with Title", "Simultaneous preprint/publisher title and year transition"),
+        "coupled_lifecycle_drift": ("Coupled Lifecycle Drift (Pure)", "Coordinated year and preprint-to-journal DOI drift"),
+    }
+
+    rows = []
+    tot_cnt = tot_cpl = 0
+    for r in data:
+        tot_cnt += r[1]
+        tot_cpl += r[3]
+        lbl = profile_labels.get(r[0], (r[0], "Unclassified"))[0]
+        rows.append([
+            lbl,
+            profile_labels.get(r[0], (r[0], "Unclassified"))[1],
+            f"{r[1]:,}",
+            f"{r[2]:.2f}%",
+            f"{r[3]:,}",
+        ])
+
+    rows.append([
+        "Total",
+        "Complete submission-level evaluation",
+        f"{tot_cnt:,}",
+        "100.00%",
+        f"{tot_cpl:,} ({tot_cpl*100.0/tot_cnt:.2f}%)",
+    ])
+
+    title = "Incidence of Coupled Publication Lifecycle Drift versus Isolated Bibliographic Reporting Errors"
+    notes = (
+        "Evaluated across all 536,707 matched ERA–OpenAlex pairs. "
+        "Coupled lifecycle drift isolates coordinated multi-field transitions (e.g., bioRxiv/SSRN preprint DOI and acceptance year transitioning to final journal DOI and publication year) "
+        "from isolated clerical errors."
     )
     return headers, rows, aligns, widths, title, notes
 
 
 def main():
     con = duckdb.connect()
-    print("Generating publication tables...")
+    print("Generating complete publication tables suite (Stage 4)...")
 
     table_generators = [
         ("table1_era_output_types_and_duplicates", 1, generate_table1),
         ("table2_hep_disparities_summary", 2, generate_table2),
         ("table3_olensky_iac_classification", 3, generate_table3),
         ("table4_institution_coauthorship_distribution", 4, generate_table4),
+        ("table5_multi_index_coverage_by_output_type", 5, generate_table5),
+        ("table6_cross_index_intersections", 6, generate_table6),
+        ("table7_comparative_olensky_taxonomy", 7, generate_table7),
+        ("table8_coupled_lifecycle_drift_profile", 8, generate_table8),
     ]
 
     master_doc = Document()
-    # Set default page margins (1 inch)
     for section in master_doc.sections:
-        section.top_margin = Inches(1)
-        section.bottom_margin = Inches(1)
-        section.left_margin = Inches(1)
-        section.right_margin = Inches(1)
+        section.top_margin = Inches(0.8)
+        section.bottom_margin = Inches(0.8)
+        section.left_margin = Inches(0.8)
+        section.right_margin = Inches(0.8)
         section.orientation = docx.enum.section.WD_ORIENT.LANDSCAPE
         section.page_width = Inches(11)
         section.page_height = Inches(8.5)
@@ -645,10 +1021,10 @@ def main():
         # 1. Standalone docx
         single_doc = Document()
         for section in single_doc.sections:
-            section.top_margin = Inches(1)
-            section.bottom_margin = Inches(1)
-            section.left_margin = Inches(1)
-            section.right_margin = Inches(1)
+            section.top_margin = Inches(0.8)
+            section.bottom_margin = Inches(0.8)
+            section.left_margin = Inches(0.8)
+            section.right_margin = Inches(0.8)
             if max(widths) * len(widths) > 6.5 or len(headers) > 6:
                 section.orientation = docx.enum.section.WD_ORIENT.LANDSCAPE
                 section.page_width = Inches(11)
@@ -669,7 +1045,7 @@ def main():
 
     master_docx_path = OUTPUT_DIR / "all_paper_tables.docx"
     master_doc.save(master_docx_path)
-    print(f"\nAll tables assembled into master document: {master_docx_path}")
+    print(f"\nAll 8 tables assembled into master document: {master_docx_path}")
 
 
 if __name__ == "__main__":

@@ -59,7 +59,27 @@ This document preserves the context, architectural decisions, and next steps fol
    - Profiled comparative Olensky inaccuracy distributions in `src/era/analysis/comparative_olensky.py`: OpenAlex (49.6% exact, 0.44% discordant), Scopus (94.8% punctuation/case, 0.22% discordant), Trove (79.5% punctuation/case, 11.4% typo, 4.9% cropped subtitles, 3.89% discordant).
    - Unit test suite expanded to 195 tests (100% passing). Exported CSV and markdown summaries to `report/output/`.
 
-## Active Roadmap
-1. **Paper Artifact Generation (Stage 4)**:
-   - Update `report/generate_tables.py` and `report/generate_figures.py` to reflect Oct26 data, the canonical ERA baseline, Scopus title harvest, Trove coverage, multi-index synthesis, and dual-perspective / coupled drift profiles.
+14. **Paper Artifact Generation (Stage 4 Completed)**:
+   - Expanded and updated `report/generate_tables.py` generating 8 APA-style publication tables in standalone `.docx`, `.csv`, `.md`, and assembled into `all_paper_tables.docx`:
+     - Table 1: Submission counts, reconciled canonical works, and duplication gradients (reconciled across all 567,647 submissions).
+     - Table 2: Cross-institution reporting disparities across co-submitted works.
+     - Table 3: Olensky IAC taxonomy incidence in ERA.
+     - Table 4: Distribution of Australian HEP co-submissions across the 83,945 collaborative works.
+     - Table 5: Multi-index coverage by output type across OpenAlex (Compact & XPAC), Scopus, Trove, and Union.
+     - Table 6: Cross-index disjoint intersections (UpSet overlap matrix).
+     - Table 7: Comparative external Olensky inaccuracy profiles across OpenAlex, Scopus, and Trove.
+     - Table 8: Dual-perspective coupled lifecycle drift vs isolated reporting errors.
+   - Expanded `report/generate_figures.py` generating 7 high-resolution publication figures (both 300-DPI `.png` and vector `.pdf`) in `report/output/figures/`:
+     - Figure 1: Output type volume and duplicate rate gradient.
+     - Figure 2: HEP-HEP reporting disparities profile.
+     - Figure 3: Olensky IAC taxonomy distribution.
+     - Figure 4: Distribution of co-reporting HEPs per output.
+     - Figure 5: Multi-index coverage rates by ERA research output type (grouped bar chart).
+     - Figure 6: Cross-index intersection sets and composition breakdown (UpSet horizontal bar chart).
+     - Figure 7: Comparative Olensky IAC type distribution across external indices (stacked bar chart).
+   - Test suite remains 100% passing across 195 unit tests.
+
+## Current State & Next Steps
+- All 4 core stages of the bibliometric disparities project (Harmonization, Linkage & Profiling, Multi-Index Synthesis, and Paper Artifact Generation) are 100% complete and verified.
+- Manuscript sections can now directly ingest these standardized tables and vector figures.
 
