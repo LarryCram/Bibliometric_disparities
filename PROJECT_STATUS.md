@@ -1,6 +1,20 @@
 # Project Status & Roadmap
 
-This document preserves the context, architectural decisions, and next steps following the migration from `SmallProjects`.
+*Last Updated: 24 October 2026*
+
+This document tracks pipeline milestones, architectural decisions, and artifact outputs for the ERA 2018 bibliometric disparities project.
+
+## Executive Summary
+
+| Analytical Stage | Description | Coverage / Scope | Status |
+| :--- | :--- | :--- | :--- |
+| **Stage 1: ERA Baseline & Deduplication** | Transitive DSU clustering of 567,647 submissions into canonical works | 455,741 canonical works; 83,945 multi-HEP outputs; tracks cross-institution reporting disparities | **100% Complete** |
+| **Stage 2A: OpenAlex Linkage** | Snapshot Oct26 matching (Compact + XPAC fallback) & location DOIs | 427,882 canonical works (93.9%); 536,707 paired submissions | **100% Complete** |
+| **Stage 2B: Scopus Linkage & Title Harvest** | Persistent title query harvest (50,780 hits) + pybliometrics cache | 342,478 canonical works (75.1%); 92.6% of journal articles | **100% Complete** |
+| **Stage 2C: Trove Linkage** | 2-tier ISBN and title query matching across National Library catalog | 36,614 works; 87.8% of books, 61.0% of book chapters, 50–74% NTROs | **100% Complete** |
+| **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
+| **Stage 4: Paper Artifacts** | 8 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
+| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, and matching | 195 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
 1. **Migration & Rationalization**: Cleanly separated core domain logic (`src/era/core/`), harmonization engine (`src/era/harmonization/`), and external source connectors (`src/era/sources/`).
