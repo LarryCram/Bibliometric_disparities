@@ -1223,6 +1223,65 @@ def generate_table10(con):
     return headers, rows, aligns, widths, title, notes
 
 
+def generate_table11(con):
+    """Table 11: Reference Resolution Disparity Taxonomy Across ERA 2018 Corpus."""
+    table11_csv = OUTPUT_DIR / "table11_reference_resolution_disparities.csv"
+    if not table11_csv.exists():
+        from era.analysis.run_backward_reference_corpus import run_full_reference_corpus_analysis
+        run_full_reference_corpus_analysis(OUTPUT_DIR)
+
+    headers = [
+        "Disparity Category",
+        "Reference Count",
+        "Reference Rate (%)",
+        "Paper Count",
+        "Paper Rate (%)",
+    ]
+    aligns = [
+        WD_ALIGN_PARAGRAPH.LEFT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+    ]
+    widths = [3.2, 1.4, 1.4, 1.4, 1.4]
+
+    labels = {
+        "total": "Total Evaluated Corpus",
+        "recent_0_to_19y": "Normal Recent Citations (0 <= Delta_T < 20y)",
+        "historical_ge_20y": "Total Historical Citations (Delta_T >= 20y)",
+        "forward_anachronisms": "Forward Anachronisms (T_target > T_source)",
+        "severe_forward_ge_5y": "Severe Forward Anachronisms (>= 5 years future)",
+        "backward_obscure_ge_20y": "Backward Obscure Outliers (>= 20y old, <= 5 cites)",
+        "backward_obscure_ge_30y": "Backward Obscure Outliers (>= 30y old, <= 5 cites)",
+        "backward_obscure_ge_50y": "Backward Obscure Outliers (>= 50y old, <= 5 cites)",
+        "backward_obscure_ge_100y": "Backward Obscure Outliers (>= 100y old, <= 5 cites)",
+    }
+
+    rows = []
+    with open(table11_csv, newline="") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            cat = r["category"]
+            if cat not in labels:
+                continue
+            lbl = labels[cat]
+            rc = f"{int(r['ref_count']):,}" if r["ref_count"] else "—"
+            rp = f"{float(r['ref_pct']):.2f}%" if r["ref_pct"] else "—"
+            pc = f"{int(r['paper_count']):,}" if r["paper_count"] else "—"
+            pp = f"{float(r['paper_pct']):.2f}%" if r["paper_pct"] else "—"
+            rows.append([lbl, rc, rp, pc, pp])
+
+    title = "Reference Resolution Disparity Taxonomy Across ERA 2018 Corpus"
+    notes = (
+        "Evaluated across 15,939,773 resolved references from 367,655 Australian university outputs in OpenAlex (2011–2016). "
+        "Forward anachronisms indicate impossible post-publication citation targets. "
+        "Backward obscure outliers isolate pre-modern citations (published >= 20 to >= 100 years prior to the citing paper) "
+        "with <= 5 lifetime citations in the global index, reflecting automated short-title and OCR collision errors."
+    )
+    return headers, rows, aligns, widths, title, notes
+
+
 def main():
     con = duckdb.connect()
     print("Generating complete publication tables suite (Stage 4)...")
@@ -1238,6 +1297,7 @@ def main():
         ("table8_coupled_lifecycle_drift_profile", 8, generate_table8),
         ("table9_reference_disparities_importance", 9, generate_table9),
         ("table10_author_institution_disparities", 10, generate_table10),
+        ("table11_reference_resolution_disparities", 11, generate_table11),
     ]
 
 
@@ -1281,7 +1341,7 @@ def main():
 
     master_docx_path = OUTPUT_DIR / "all_paper_tables.docx"
     master_doc.save(master_docx_path)
-    print(f"\nAll 10 tables assembled into master document: {master_docx_path}")
+    print(f"\nAll {len(table_generators)} tables assembled into master document: {master_docx_path}")
 
 
 if __name__ == "__main__":
