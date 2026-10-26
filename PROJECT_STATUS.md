@@ -17,7 +17,7 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 5: References & Authors** | GROBID TEI internal citation network (131k citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet`; Tables 9 & 10 | **100% Complete** |
 | **Stage 6: Assessment vs Index Disparities** | Systematic comparison of ERA submissions vs OpenAlex HEP corpus; temporal mobility gradient | `manuscript/disparities_assessment_vs_index.tex`, compiled 7-page PDF | **100% Complete** |
 | **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.96% refs, 12.2% papers); 4 metadata-only backward error tests | Evaluated 1.6M refs; pybliometrics live caching verified (9,998 quota) | **100% Complete** |
-| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, and matching | 198 unit tests passing | **100% Passing** |
+| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, and matching | 204 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
 
@@ -123,15 +123,16 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
    - **Failure Mode Discovery**: Identified four non-namesake mechanisms generating forward errors: retrospective publisher/OJS platform migration dates (e.g. AAAI, ScholarWorks, Érudit), classic monograph hijacking by modern student study guides (e.g. Kuhn 1962 resolved to 2017 Routledge guide), reference work reprint drift (e.g. Abramowitz & Stegun 1964 bound to 2018 CRC chapter), and conference series volume collisions.
    - **Search Space Asymmetry Principle**: Formulated the theoretical rationale explaining why backward errors are structurally far more prevalent than forward anachronisms: the historical candidate pool (1850–2011) is $10\times\text{--}50\times$ larger than the post-publication window, and reference matchers apply temporal penalties against future dates while leaving past candidates unconstrained.
    - **Metadata-Only Backward Error Detection Framework**: Formulated and verified 4 subtle, non-fulltext tests:
-     1. *Monotonic Alphabetical Inversion*: Detecting bibliography row-shifts and misalignments in author-date formats via sequence violations in deposited `referenced_works` arrays without PDF parsing.
-     2. *Cross-Index Target Discordance*: Comparing resolved reference sets between OpenAlex and Scopus to isolate conflicting historical targets.
-     3. *Bibliographic Coupling Orphans*: Identifying topological ghost nodes with zero co-citations across the entire historical literature.
-     4. *Reverse Citation Community Outliers*: Identifying isolated bipartite edges bridging into foreign, tightly bounded citation trees.
+     1. *Monotonic Alphabetical Inversion (MAI)*: Detecting bibliography row-shifts, misalignments, and false author-matching via sequence violations in deposited `referenced_works` / reference arrays without PDF parsing.
+     2. *Cross-Index Target Discordance (CCD)*: Comparing resolved reference sets between OpenAlex and Scopus to isolate conflicting historical targets ($T_{\text{target}} \le T_{\text{source}}$).
+     3. *Obscure Historical Outliers (OHO)*: Identifying pre-modern citations ($\ge 20$ years old) with negligible global impact ($\le 5$ citations), isolating false short-title and OCR collisions.
+     4. *Topological Ghost Orphans (TGO)*: Identifying isolated bipartite edges bridging into foreign, disconnected citation communities.
    - **Scopus AbstractRetrieval Live Integration**: Verified pybliometrics caching on K-Drive (`/home/lc/k/era/.scopus/`) with active Scopus API credentials (9,998 weekly quota remaining, resets 2026-11-02), enabling instant cached cross-index reference audits.
+   - **Implemented Analysis & Demo**: Created `src/era/analysis/backward_reference_disparities.py` executing all 4 diagnostics across canonical ERA papers, accompanied by unit tests in `tests/test_backward_reference_disparities.py`. Test suite expanded to 204 tests (100% passing).
 
 ## Current State & Next Steps
-- All analytical stages complete and verified. 198 unit tests passing.
+- All analytical stages complete and verified. 204 unit tests passing.
 - Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 10 publication tables in `report/output/tables/all_paper_tables.docx`.
-- Next step: Run cross-index reference resolution comparison between OpenAlex and Scopus across sample of ERA papers using pybliometrics cache.
+- Next step: Run large-scale cross-index reference resolution comparison between OpenAlex and Scopus across sample of ERA papers using pybliometrics cache.
 
 
