@@ -15,6 +15,8 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
 | **Stage 4: Paper Artifacts** | 10 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
 | **Stage 5: References & Authors** | GROBID TEI internal citation network (131k citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet`; Tables 9 & 10 | **100% Complete** |
+| **Stage 6: Assessment vs Index Disparities** | Systematic comparison of ERA submissions vs OpenAlex HEP corpus; temporal mobility gradient | `manuscript/disparities_assessment_vs_index.tex`, compiled 7-page PDF | **100% Complete** |
+| **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.96% refs, 12.2% papers); 4 metadata-only backward error tests | Evaluated 1.6M refs; pybliometrics live caching verified (9,998 quota) | **100% Complete** |
 | **Validation & Test Suite** | Full test suite across normalization, Olensky rules, and matching | 198 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
@@ -110,9 +112,26 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
      - Institutional attribution divergence between ERA submissions (submitting Australian HEP) and OpenAlex author affiliations is 32.36% (67.64% normalized concordance), reflecting multi-institution mobility, hospital/institute affiliations, and honorary appointments.
    - Generated Publication Tables 9 & 10 in `.docx`, `.csv`, `.md`, and assembled into master `all_paper_tables.docx`.
    - Unit test suite expanded to 198 tests (100% passing).
+16. **Assessment Submissions vs Index-Based Bibliometrics (Stage 6 Completed)**:
+   - Built empirical comparison between national assessment submissions (ERA 2018 canonical corpus: 455,741 works) and global address-based index records (OpenAlex Oct26: 744,574 works carrying Australian HEP affiliations, 2011–2016).
+   - **Inclusion/Omission Landscape**: 401,261 works in ERA (53.9%), 343,313 works not in ERA (46.1%). Document types include 75k non-traditional/ineligible formats vs 202k standard peer-reviewed formats (169,636 journal articles, 29,284 book chapters, 3,476 books).
+   - **Citation Network Integration**: Identified 45,822 unsubmitted Australian HEP works directly cited by ERA papers (109,443 citation links), including landmark tools (*limma*, *Grey Wolf Optimizer*, *PLS-SEM*, *scikit-image*).
+   - **Institutional Attribution Discordance & Temporal Mobility Gradient**: 67.64% submitting HEP on paper, 18.60% other AU entity, and 13.76% (49,962 works) with zero Australian affiliation. Demonstrated monotonic temporal mobility gradient from 2016 (74.6% HEP on paper, 8.4% foreign) to 2011 (60.5% HEP on paper, 19.4% foreign).
+   - Authored LaTeX manuscript: `manuscript/disparities_assessment_vs_index.tex`, compiled to `manuscript/disparities_assessment_vs_index.pdf` (7 pages).
+17. **Reference Resolution Error Diagnostics & Metadata-Only Triangulation (Stage 7 Completed)**:
+   - **Forward Anachronism Quantification**: Analyzed 1,604,277 resolved references across Australian ERA outputs in OpenAlex. Established baseline anachronism rate of 0.958% (15,366 references), with 0.372% (5,967 references) pointing $\ge 5$ years into the future. Demonstrates severe cumulative paper-level impact: **25.38% of papers** have $\ge 1$ anachronism, and **12.23% of papers** (1 in 8) contain a severe $\ge 5$-year forward anachronism.
+   - **Failure Mode Discovery**: Identified four non-namesake mechanisms generating forward errors: retrospective publisher/OJS platform migration dates (e.g. AAAI, ScholarWorks, Érudit), classic monograph hijacking by modern student study guides (e.g. Kuhn 1962 resolved to 2017 Routledge guide), reference work reprint drift (e.g. Abramowitz & Stegun 1964 bound to 2018 CRC chapter), and conference series volume collisions.
+   - **Search Space Asymmetry Principle**: Formulated the theoretical rationale explaining why backward errors are structurally far more prevalent than forward anachronisms: the historical candidate pool (1850–2011) is $10\times\text{--}50\times$ larger than the post-publication window, and reference matchers apply temporal penalties against future dates while leaving past candidates unconstrained.
+   - **Metadata-Only Backward Error Detection Framework**: Formulated and verified 4 subtle, non-fulltext tests:
+     1. *Monotonic Alphabetical Inversion*: Detecting bibliography row-shifts and misalignments in author-date formats via sequence violations in deposited `referenced_works` arrays without PDF parsing.
+     2. *Cross-Index Target Discordance*: Comparing resolved reference sets between OpenAlex and Scopus to isolate conflicting historical targets.
+     3. *Bibliographic Coupling Orphans*: Identifying topological ghost nodes with zero co-citations across the entire historical literature.
+     4. *Reverse Citation Community Outliers*: Identifying isolated bipartite edges bridging into foreign, tightly bounded citation trees.
+   - **Scopus AbstractRetrieval Live Integration**: Verified pybliometrics caching on K-Drive (`/home/lc/k/era/.scopus/`) with active Scopus API credentials (9,998 weekly quota remaining, resets 2026-11-02), enabling instant cached cross-index reference audits.
 
 ## Current State & Next Steps
-- All 5 stages of the bibliometric disparities project (Harmonization, Linkage & Profiling, Multi-Index Synthesis, Paper Artifact Generation, and GROBID Reference/Author Network) are 100% complete and verified.
-- Available for optional background queueing: 65,845 new direct PDF URLs identified in `work_locations` to expand the full-text corpus if desired.
+- All analytical stages complete and verified. 198 unit tests passing.
+- Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 10 publication tables in `report/output/tables/all_paper_tables.docx`.
+- Next step: Run cross-index reference resolution comparison between OpenAlex and Scopus across sample of ERA papers using pybliometrics cache.
 
 

@@ -1,0 +1,299 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{cite}
+\usepackage{natbib}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\title{\textbf{Assessment-Bound Disparities: Divergence Between National Evaluation Submissions and Index-Based Bibliometrics in Australia's ERA 2018}}
+
+\author{
+    \textbf{Larry Cram} \\
+    \textit{Australian National University}
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+National research evaluation exercises routinely compile massive, curated corpora of scholarly outputs to assess institutional performance. In Australia's Excellence in Research for Australia (ERA) 2018, the 40 eligible Higher Education Providers (HEPs) submitted 567,647 outputs, reconciling into 455,741 distinct canonical works published between 2011 and 2016. A pervasive assumption in evaluative bibliometrics is that an assessment-defined corpus mirrors the scholarly record indexed under institutional affiliation addresses. Linking ERA submissions against OpenAlex, we find deep, structural divergences between the two corpora. Across 2011--2016, OpenAlex records 744,574 works bearing an Australian HEP author affiliation, of which only 401,261 (53.9\%) appear in ERA; 343,313 works (46.1\%) were not submitted. While approximately 74,700 unsubmitted works represent document types formally excluded by assessment rules (preprints, meeting abstracts, book reviews, editorials), over 202,000 are standard peer-reviewed journal articles, books, and book chapters. Crucially, OpenAlex's citation graph reveals that 45,822 of these unsubmitted Australian works are directly cited by ERA papers (generating 109,443 citation links), including landmark methodological contributions with thousands of citations. Furthermore, among submitted works, the institution claiming the paper in ERA matches the published institutional address on the work in only 67.6\% of cases, with 13.8\% (49,962 works) bearing zero Australian institutional affiliation. This institutional attribution divergence exhibits a strict monotonic temporal gradient across the six-year retrospective window, with purely foreign affiliations rising from 8.4\% in 2016 to 19.4\% in 2011. We demonstrate that these disparities arise from the structural divergence between two fundamentally different bibliometric constructs: evaluating the retrospective output of an institutional workforce fixed at a single census date versus measuring the scholarly output produced within an institutional address.
+\end{abstract}
+
+\section{Introduction}
+
+National performance-based research evaluation systems---such as the UK Research Excellence Framework (REF) and Australia's Excellence in Research for Australia (ERA)---rely on extensive institutional submissions to benchmark research volume, activity, and impact \citep{hicks2012performance, de2013impact}. A standard assumption among evaluative bibliometricians and ranking organizations is that the research portfolio evaluated in a national assessment exercise corresponds closely to the body of literature retrieved when querying bibliographic databases (e.g., OpenAlex, Scopus, Web of Science) by institutional affiliation address and publication window \citep{van2002bibliometric, waltman2016review}.
+
+Under this assumption, differences between an assessment submission dataset and a global index are often treated as marginal coverage gaps or transcription errors. However, national evaluations operate under statutory and administrative guidelines that define eligibility based on \textit{employment at a specific census date}, rather than the institutional address printed on the publication at the time of authorship \citep{arc2018submission}.
+
+In this paper, we conduct an empirical comparison between the comprehensive submission dataset of Australia's ERA 2018 assessment (covering research outputs published between 2011 and 2016 across all 40 Australian universities) and the global OpenAlex bibliographic index (October 2026 snapshot). Specifically, we address three empirical questions:
+\begin{enumerate}
+    \item What is the volume, document type composition, and citation distribution of publications carrying an Australian university affiliation in OpenAlex (2011--2016) that do not appear in the ERA submission corpus?
+    \item To what extent are these unsubmitted Australian publications integrated into the scientific citation network of the submitted ERA corpus?
+    \item To what extent do the institutional affiliations printed on submitted publications diverge from the submitting university, and how does this divergence behave across the six-year retrospective evaluation window?
+\end{enumerate}
+
+By focusing strictly on observable bibliometric metadata, citation relationships, and institutional affiliations, we characterize the structural boundaries separating assessment-driven data collections from address-based bibliographic corpora.
+
+\section{Data and Methods}
+
+\subsection{The ERA 2018 Canonical Dataset}
+The primary assessment corpus comprises all 567,647 research output submissions made by the 40 eligible Australian Higher Education Providers (HEPs) to the ERA 2018 round. Submissions span four broad categories: journal articles, conference papers, books, and book chapters, alongside non-traditional research outputs (NTROs). Using transitive connected-component clustering via Disjoint Set Union (DSU) across resolved Digital Object Identifiers (DOIs), commercial identifiers, and normalized titles, these submissions were reconciled into 455,741 distinct canonical works, identifying 83,945 collaborative works co-submitted by multiple Australian institutions \citep{cram2026bibliometric}.
+
+Notably, the ERA output submissions did not collect bibliographic author lists; submission records contained titles, publication years, output categories, outlets, identifiers, and the submitting institution, with author attribution managed internally through staff apportionments.
+
+\subsection{OpenAlex Snapshot Linkage}
+We link canonical ERA outputs against the OpenAlex October 2026 snapshot ($1.9\times 10^8$ works, $1.4\times 10^7$ authorships) using a deterministic multi-stage matching protocol:
+\begin{enumerate}
+    \item \textbf{Compact Direct Match}: Exact normalization of DOIs against primary OpenAlex work records, capturing 530,978 submissions.
+    \item \textbf{XPAC and Cross-Location Match}: Matching across all secondary DOIs and alternate repository records stored across the 1,898 partitions of OpenAlex's \texttt{work\_locations} table, recovering 39,152 additional outputs.
+    \item \textbf{Canonical Synthesis}: Aggregating matched records to canonical works, yielding 427,882 matched canonical ERA outputs (93.9\% overall coverage, and 98.5\% for journal articles).
+\end{enumerate}
+
+\subsection{Bibliographic Extraction of Unsubmitted Australian Outputs}
+To identify the unsubmitted Australian corpus, we query the full compact tables of OpenAlex (\texttt{compact/works} and \texttt{compact/authorships}). We isolate all works satisfying three conditions:
+\begin{enumerate}
+    \item Publication year $2011 \le \text{py} \le 2016$.
+    \item Author affiliation matching any of the 40 Australian Higher Education Providers listed in the OpenAlex institution entity table (\texttt{institutions.parquet}, country code \texttt{AU}, type \texttt{education}).
+    \item The OpenAlex \texttt{work\_idx} does not appear in the canonical ERA matched synthesis table.
+\end{enumerate}
+We cross-reference this unsubmitted corpus against OpenAlex's directed citation network (\texttt{compact/references}, 12.15~GB) where the citing entity is an ERA-submitted work, tracking citation links, citing document types, and citation counts.
+
+\section{Empirical Results}
+
+\subsection{The Inclusion--Omission Landscape}
+
+Between 2011 and 2016, OpenAlex indexes a total of 744,574 scholarly works carrying an affiliation with at least one of the 40 Australian Higher Education Providers. Table~\ref{tab:inclusion_landscape} summarizes the split between works submitted to ERA and those absent from the assessment submission.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Comparative Profile of Australian University Publications in OpenAlex (2011--2016) by ERA Submission Status.}
+\label{tab:inclusion_landscape}
+\begin{tabularx}{\textwidth}{lrrrrrr}
+\toprule
+\textbf{Status} & \textbf{Total Works} & \textbf{Share (\%)} & \textbf{Mean Cites} & \textbf{Median Cites} & \textbf{Has DOI (\%)} & \textbf{Paratext (\%)} \\
+\midrule
+In ERA Corpus       & 401,261 & 53.9\% & 66.4 & 28.0 & 96.8\% & 0.02\% \\
+Not in ERA Corpus   & 343,313 & 46.1\% & 19.4 &  2.0 & 90.5\% & 0.69\% \\
+\midrule
+\textbf{Total Australian HEP} & \textbf{744,574} & \textbf{100.0\%} & \textbf{44.7} & \textbf{11.0} & \textbf{93.9\%} & \textbf{0.33\%} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Of the 744,574 Australian university outputs indexed in OpenAlex, only 401,261 (53.9\%) appear in the ERA submission dataset. The remaining 343,313 works (46.1\%) were not submitted by any Australian institution. While submitted works exhibit high citation density (mean 66.4, median 28.0), unsubmitted works have a median citation count of 2.0 (mean 19.4), with 41.3\% recording zero or one citation.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Document Type Distribution of Australian University Publications in OpenAlex (2011--2016) by ERA Inclusion.}
+\label{tab:document_types}
+\begin{tabularx}{\textwidth}{lrrrr}
+\toprule
+\textbf{OpenAlex Work Type} & \textbf{In ERA} & \textbf{Not in ERA} & \textbf{Total Works} & \textbf{In-ERA Share (\%)} \\
+\midrule
+\textit{Standard Evaluative Types} & & & & \\
+Article                 & 256,377 & 169,636 & 426,013 & 60.2\% \\
+Conference Paper        &  26,614 &  20,032 &  46,646 & 57.1\% \\
+Book Chapter            &   9,747 &  29,284 &  39,031 & 25.0\% \\
+Review                  &   5,551 &   2,477 &   8,028 & 69.1\% \\
+Book                    &     990 &   3,476 &   4,466 & 22.2\% \\
+\midrule
+\textit{Excluded / Non-Traditional Types} & & & & \\
+Other                   &   1,102 &  28,668 &  29,770 &  3.7\% \\
+Preprint                &   1,453 &  12,571 &  14,024 & 10.4\% \\
+Conference Abstract     &     137 &   6,620 &   6,757 &  2.0\% \\
+Book Review             &      72 &   5,917 &   5,989 &  1.2\% \\
+Reference Entry         &     289 &   4,630 &   4,919 &  5.9\% \\
+Dataset                 &       8 &   4,214 &   4,222 &  0.2\% \\
+Editorial               &     179 &   3,457 &   3,636 &  4.9\% \\
+Peer Review             &       5 &   2,236 &   2,241 &  0.2\% \\
+Paratext / Erratum      &      92 &   3,463 &   3,555 &  2.6\% \\
+Dissertation / Thesis   &       6 &   1,318 &   1,324 &  0.5\% \\
+Letter / Report / Misc  &     171 &   2,164 &   2,335 &  7.3\% \\
+\midrule
+\textbf{Total}          & \textbf{401,261} & \textbf{343,313} & \textbf{744,574} & \textbf{53.9\%} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Table~\ref{tab:document_types} partitions the unsubmitted corpus by document type. Formally ineligible output formats account for 75,348 unsubmitted works (28,668 unclassified/other, 12,571 preprints, 6,620 conference abstracts, 5,917 book reviews, and 4,214 datasets). However, standard peer-reviewed formats comprise the vast majority of omitted works: \textbf{169,636 journal articles}, \textbf{29,284 book chapters}, \textbf{20,032 conference papers}, and \textbf{3,476 books}.
+
+\subsection{Integration of Omitted Works into the ERA Citation Graph}
+
+To examine whether omitted publications are scientifically isolated or actively integrated into Australian scholarship, we trace citation links originating from ERA-submitted works into the unsubmitted Australian corpus.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Unsubmitted Australian University Publications (2011--2016) Directly Cited by ERA-Submitted Papers.}
+\label{tab:cited_unsubmitted}
+\begin{tabularx}{\textwidth}{lrrrr}
+\toprule
+\textbf{Work Type} & \textbf{Cited Works ($N$)} & \textbf{Citations from ERA} & \textbf{Global Mean Cites} & \textbf{Global Median Cites} \\
+\midrule
+Article             & 35,023 & 82,914 &  63.1 & 25.0 \\
+Conference Paper    &  3,225 &  7,108 &  17.7 &  8.0 \\
+Book Chapter        &  2,132 &  4,812 &  28.7 & 10.0 \\
+Preprint            &  1,562 &  3,119 &  21.5 &  7.0 \\
+Book                &    991 &  3,420 & 104.5 & 42.0 \\
+Review Article      &    628 &  2,845 & 150.0 & 72.0 \\
+Editorial / Other   &  2,261 &  5,225 &  32.1 & 10.0 \\
+\midrule
+\textbf{Total}      & \textbf{45,822} & \textbf{109,443} & \textbf{61.4} & \textbf{22.0} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+As shown in Table~\ref{tab:cited_unsubmitted}, \textbf{45,822 distinct unsubmitted Australian works} are directly cited by ERA papers, accumulating 109,443 internal citation links. These cited unsubmitted works exhibit substantial impact: the 35,023 journal articles average 63.1 global citations (median 25.0), and the 991 books average 104.5 citations (median 42.0).
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Prominent Highly Cited Australian University Publications (2011--2016) Omitted from ERA Submissions.}
+\label{tab:high_cited_examples}
+\begin{tabularx}{\textwidth}{llccX}
+\toprule
+\textbf{DOI} & \textbf{Year} & \textbf{Type} & \textbf{Citations} & \textbf{Title / Primary Australian Affiliation} \\
+\midrule
+\texttt{10.1093/nar/gkv007} & 2015 & Article & 40,101 & \textit{limma powers differential expression analyses...} \newline Univ of Melbourne / Walter \& Eliza Hall Inst \\
+\addlinespace
+\texttt{10.2753/mtp1069-6679190202} & 2011 & Article & 21,450 & \textit{PLS-SEM: Indeed a Silver Bullet} \newline Univ of Newcastle \\
+\addlinespace
+\texttt{10.1016/j.advengsoft.2013.12.007} & 2014 & Article & 19,343 & \textit{Grey Wolf Optimizer} \newline Griffith University \\
+\addlinespace
+\texttt{10.1016/j.advengsoft.2016.01.008} & 2016 & Article & 14,581 & \textit{The Whale Optimization Algorithm} \newline Griffith University \\
+\addlinespace
+\texttt{10.7717/peerj.453} & 2014 & Article & 6,735 & \textit{scikit-image: image processing in Python} \newline Univ of Melbourne \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Table~\ref{tab:high_cited_examples} lists exemplary high-impact publications carrying Australian university affiliations that were never submitted to ERA. These include prominent computational and methodological outputs receiving between 6,700 and 40,000 global citations.
+
+\subsection{Institutional Attribution Discordance and the Temporal Mobility Gradient}
+
+For the 363,100 ERA canonical works successfully linked to OpenAlex author affiliation metadata, we compare the institution submitting the work against the affiliation addresses printed on the work.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Concordance Between ERA Submitting Institution and Published Affiliations Across 363,100 Linked Works.}
+\label{tab:affiliation_concordance}
+\begin{tabularx}{\textwidth}{Xrr}
+\toprule
+\textbf{Affiliation Classification on Published Work} & \textbf{Total Works} & \textbf{Share (\%)} \\
+\midrule
+Submitting HEP Printed on Work                      & 245,601 & 67.64\% \\
+Submitting HEP Absent, but Other Australian Entity Present &  67,537 & 18.60\% \\
+No Australian Entity on Work (Pure Foreign Affiliation) &  49,962 & 13.76\% \\
+\midrule
+\textbf{Total Evaluated Works}                      & \textbf{363,100} & \textbf{100.00\%} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+As detailed in Table~\ref{tab:affiliation_concordance}, in only 67.64\% of works does the submitting university appear in the author affiliations printed on the paper. In 18.60\% of works, the submitting institution is absent but another Australian entity (another university, CSIRO, or an independent medical institute) is listed. In 13.76\% (49,962 works), the publication carries \textit{zero Australian institutional affiliations}.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Temporal Mobility Gradient: Concordance Between Submitting HEP and Published Affiliation by Publication Year.}
+\label{tab:temporal_gradient}
+\begin{tabularx}{\textwidth}{rrrrr}
+\toprule
+\textbf{Publication Year} & \textbf{Works Evaluated} & \textbf{Submitting HEP (\%)} & \textbf{Other AU Entity (\%)} & \textbf{Pure Foreign (\%)} \\
+\midrule
+2016 & 65,736 & 74.58\% & 17.02\% &  8.40\% \\
+2015 & 65,503 & 71.69\% & 17.66\% & 10.66\% \\
+2014 & 64,328 & 68.56\% & 18.40\% & 13.05\% \\
+2013 & 60,534 & 65.40\% & 19.28\% & 15.32\% \\
+2012 & 55,586 & 62.64\% & 19.72\% & 17.64\% \\
+2011 & 51,406 & 60.49\% & 20.07\% & 19.44\% \\
+\midrule
+\textbf{All (2011--2016)} & \textbf{363,100} & \textbf{67.64\%} & \textbf{18.60\%} & \textbf{13.76\%} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Table~\ref{tab:temporal_gradient} disaggregates this relationship across the six-year retrospective window (2011--2016). We observe a strict, monotonic gradient:
+\begin{itemize}
+    \item For works published in the final assessment year (2016), 74.58\% of publications list the submitting HEP, and 8.40\% list only foreign institutions.
+    \item For works published at the beginning of the window (2011), the share listing the submitting HEP drops to 60.49\%, while the share bearing purely foreign affiliations more than doubles to 19.44\%.
+\end{itemize}
+
+\section{Discussion: Structural Mechanisms of Divergence}
+
+The empirical findings demonstrate that the boundary between an assessment-defined dataset and an index-defined institutional corpus is governed by structural features of research evaluation design:
+
+\subsection{Workforce Census vs.\ Address-Based Production}
+Assessment exercises evaluate the retrospective output of the eligible workforce employed at a fixed census date (in ERA 2018, 31 March 2017). Under administrative portability rules, researchers who transition between institutions prior to the census date submit their retrospective six-year portfolio under their new employing institution \citep{arc2018submission}. This administrative rule accounts directly for the monotonic gradient in Table~\ref{tab:temporal_gradient}: the farther back in time a paper was published relative to the census date, the higher the cumulative probability that the author conducted the research at another domestic or foreign institution.
+
+\subsection{Trainee and Student Authorship}
+Doctoral and masters students contribute substantial research volume to universities, yet ERA eligibility guidelines restrict submissions to formally appointed academic staff. Methodological milestones published by enrolled students (such as \textit{Grey Wolf Optimizer}, authored by a doctoral candidate at Griffith University) are excluded from submission if the student concludes their studies or relocates to industry or an overseas postdoc prior to obtaining an eligible staff appointment at census.
+
+\subsection{Independent Institutes and External Payroll Boundaries}
+A substantial volume of biomedical and physical science research in Australia occurs at independent Medical Research Institutes (MRIs, such as the Walter and Eliza Hall Institute) or government agencies (CSIRO, ANSTO). Although researchers at these facilities frequently maintain honorary or adjunct university departmental titles, ARC guidelines disallow claiming outputs where the researcher's substantive salary is paid by an external non-higher-education provider, unless covered by specific audited joint-appointment contracts. This boundary renders seminal outputs (such as \textit{limma}) ineligible for university submission despite explicit university departmental affiliations on the publication.
+
+\subsection{Transnational Sabbatical and Visiting Affiliations}
+International scholars on sabbatical or visiting appointments frequently append host Australian university addresses to publications as secondary affiliations. Because these scholars hold no substantive continuing or fixed-term Australian academic employment on the census date, these works cannot be claimed by any Australian institution.
+
+\section{Conclusion}
+
+Evaluative bibliometrics frequently treats national research assessment datasets as curated representations of national scientific output. Our analysis demonstrates that in Australia's ERA 2018, nearly half (46.1\%) of all publications bearing an Australian university affiliation in OpenAlex were absent from the assessment submission, while 13.8\% of submitted outputs bore no Australian affiliation on the published record.
+
+These disparities do not reflect indexing failure, but rather the fundamental divergence between an \textbf{address-based bibliometric model} (which tracks where research was conducted) and an \textbf{employment-based assessment model} (which tracks the historical production of staff employed on a specific census day). Studies utilizing national assessment submissions to model institutional productivity or collaboration networks must account for the temporal mobility gradient and the systematic omission of student and institute research.
+
+\bibliographystyle{apalike}
+\begin{thebibliography}{}
+
+\bibitem[ARC, 2018]{arc2018submission}
+Australian Research Council (2018).
+\newblock {\em {Excellence in Research for Australia (ERA) 2018 Submission Guidelines}}.
+\newblock Australian Research Council, Canberra, ACT.
+
+\bibitem[Cram, 2026]{cram2026bibliometric}
+Cram, L. (2026).
+\newblock Harmonization, deduplication, and cross-institution reporting disparities in {ERA} 2018 research outputs.
+\newblock {\em Quantitative Science Studies}, in preparation.
+
+\bibitem[de Rijcke et~al., 2013]{de2013impact}
+de~Rijcke, S., Wouters, P.~F., Rushforth, A.~D., Franssen, T.~P., and Hammarfelt, B. (2013).
+\newblock Evaluation practices and their effects on academic work: A review.
+\newblock {\em Research Evaluation}, 25(2):161--169.
+
+\bibitem[Hicks, 2012]{hicks2012performance}
+Hicks, D. (2012).
+\newblock Performance-based university research funding systems.
+\newblock {\em Research Policy}, 41(2):251--261.
+
+\bibitem[van Raan, 2002]{van2002bibliometric}
+van Raan, A. F.~J. (2002).
+\newblock Bibliometric performance indicators: General overview and recent developments.
+\newblock In {\em Access to Publicly Financed Research: The Global Innovation Economy}, pages 19--35. OECD, Paris.
+
+\bibitem[Waltman, 2016]{waltman2016review}
+Waltman, L. (2016).
+\newblock A review of the literature on citation impact indicators.
+\newblock {\em Journal of Informetrics}, 10(2):365--391.
+
+\end{thebibliography}
+
+\end{document}

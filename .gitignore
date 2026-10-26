@@ -180,3 +180,12 @@ report/output/
 resources/*
 .tmp/
 *.tmp
+
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.out
