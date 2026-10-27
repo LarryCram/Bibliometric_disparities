@@ -6,6 +6,8 @@ and trigger PDF downloads across verified Gold Open Access journal articles dire
 """
 
 import argparse
+import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -19,6 +21,7 @@ from era.config import DATA_DIR, K_DRIVE, PROJECT_ROOT
 TARGET_DIR = K_DRIVE / "era_oa_pdfs"
 OA_LOCATIONS = DATA_DIR / "oa_locations.parquet"
 CANONICAL_MATCHES = DATA_DIR / "era_openalex_canonical_matches.parquet"
+DEFAULT_PROFILE_DIR = Path.home() / ".config" / "era_chrome_profile"
 
 
 def fetch_gold_oa_candidates(limit: int | None = 100) -> list[dict[str, Any]]:
@@ -67,56 +70,90 @@ def fetch_gold_oa_candidates(limit: int | None = 100) -> list[dict[str, Any]]:
     return candidates
 
 
+def setup_chrome_profile(profile_dir: Path) -> Path:
+    """Ensure Chrome profile directory has external PDF viewing enabled."""
+    pref_dir = profile_dir / "Default"
+    pref_dir.mkdir(parents=True, exist_ok=True)
+    pref_file = pref_dir / "Preferences"
+
+    prefs: dict[str, Any] = {}
+    if pref_file.exists():
+        try:
+            with open(pref_file, "r") as f:
+                prefs = json.load(f)
+        except Exception:
+            prefs = {}
+
+    prefs.setdefault("plugins", {})["always_open_pdf_externally"] = True
+    prefs.setdefault("download", {})["prompt_for_download"] = False
+
+    with open(pref_file, "w") as f:
+        json.dump(prefs, f)
+
+    return profile_dir
+
+
 def harvest_candidates(
     candidates: list[dict[str, Any]],
-    headless: bool = True,
+    headless: bool = False,
     delay: float = 2.0,
     timeout: int = 15000,
+    profile_dir: Path = DEFAULT_PROFILE_DIR,
 ) -> tuple[int, int]:
-    """Harvest candidates sequentially using Playwright Chrome."""
+    """Harvest candidates sequentially using persistent Playwright Chrome."""
     if not candidates:
         print("No pending candidates to harvest.")
         return 0, 0
 
-    print(f"Launching Playwright Chrome (headless={headless}) for {len(candidates)} candidates...")
+    # Filter out already existing on disk before launching browser
+    pending = []
     success_count = 0
     fail_count = 0
 
+    for item in candidates:
+        dest = item["dest_path"]
+        if dest.exists() and dest.stat().st_size > 4096:
+            success_count += 1
+        else:
+            pending.append(item)
+
+    if not pending:
+        print(f"All {len(candidates)} candidates already exist on disk.")
+        return success_count, fail_count
+
+    setup_chrome_profile(profile_dir)
+    print(f"Launching Playwright Chrome (headless={headless}) for {len(pending)} pending items...")
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=str(profile_dir),
             channel="chrome",
             headless=headless,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-            ],
-        )
-        context = browser.new_context(
             accept_downloads=True,
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            args=["--disable-blink-features=AutomationControlled"],
         )
         page = context.new_page()
 
-        for idx, item in enumerate(candidates, start=1):
+        for idx, item in enumerate(pending, start=1):
             oid = item["oax_id"]
             url = item["url"]
             journal = item["journal"]
             dest = item["dest_path"]
 
-            if dest.exists() and dest.stat().st_size > 4096:
-                print(f"[{idx}/{len(candidates)}] Already exists on disk: OAX {oid}")
-                success_count += 1
-                continue
-
-            print(f"[{idx}/{len(candidates)}] Navigating: OAX {oid} ({journal[:25]})...")
+            print(f"[{idx}/{len(pending)}] Harvesting: OAX {oid} ({journal[:30]})...")
             t0 = time.time()
             saved = False
 
             try:
-                # 1. Listen for immediate direct download event
+                # 1. Direct download attempt
                 try:
-                    with page.expect_download(timeout=min(timeout, 8000)) as dl_info:
-                        page.goto(url, wait_until="commit", timeout=timeout)
+                    with page.expect_download(timeout=min(timeout, 12000)) as dl_info:
+                        try:
+                            page.goto(url, wait_until="commit", timeout=timeout)
+                        except Exception as nav_err:
+                            err_msg = str(nav_err)
+                            if "Download is starting" not in err_msg and "net::ERR_ABORTED" not in err_msg:
+                                raise
                     dl = dl_info.value
                     dl.save_as(str(dest))
                     sz = dest.stat().st_size
@@ -125,16 +162,16 @@ def harvest_candidates(
                 except Exception:
                     pass
 
-                # 2. If not downloaded yet, page might be an article HTML page with a Download button
+                # 2. Fallback to HTML landing page buttons
                 if not saved:
                     # Dismiss cookie banners if present
                     try:
                         cookie_btn = page.locator(
-                            "button[data-cc-action='accept'], button:has-text('Accept all'), "
+                            "button[data-cc-action='accept'], button:has-text('Accept'), "
                             "button:has-text('Agree'), #onetrust-accept-btn-handler"
                         ).first
-                        if cookie_btn.is_visible(timeout=1500):
-                            cookie_btn.click(timeout=1000)
+                        if cookie_btn.is_visible(timeout=1200):
+                            cookie_btn.click(timeout=800)
                             page.wait_for_timeout(300)
                     except Exception:
                         pass
@@ -142,7 +179,7 @@ def harvest_candidates(
                     # Look for PDF button / link
                     pdf_btn = page.locator(
                         "a[data-article-pdf='true'], a:has-text('Download PDF'), "
-                        "a:has-text('PDF'), a[href$='.pdf']"
+                        "a:has-text('PDF'), a[href*='.pdf']"
                     ).first
 
                     if pdf_btn and pdf_btn.is_visible(timeout=2500):
@@ -167,7 +204,7 @@ def harvest_candidates(
 
             time.sleep(delay)
 
-        browser.close()
+        context.close()
 
     print(f"\nHarvest Run Complete: {success_count} succeeded, {fail_count} failed out of {len(candidates)}.")
     return success_count, fail_count
