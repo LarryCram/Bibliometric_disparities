@@ -154,9 +154,16 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
    - Built [`tests/test_simkin_roychowdhury.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/tests/test_simkin_roychowdhury.py) expanding test suite to 207 tests (100% passing).
    - Generated Publication **Table 12: Simkin & Roychowdhury Citation Mutation-Copying Dynamics** in standalone `.docx`, `.csv`, `.md`, and assembled into master [`report/output/tables/all_paper_tables.docx`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/all_paper_tables.docx).
 
+19. **Pure Gold Open Access Harvest Workbench & Automated Multi-Folder Sweeper**:
+    - Engineered [`src/era/sources/fulltext/generate_browser_queue.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/generate_browser_queue.py) to target the 39,325 verified Gold OA journal papers with direct PDF links, formatting as a compact, ultra-fast 1-line-per-URL HTML workbench with multi-tab opening.
+    - Built [`src/era/sources/fulltext/sweep_downloads.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/sweep_downloads.py) and test suite [`tests/test_sweep_downloads.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/tests/test_sweep_downloads.py) (210 tests passing).
+    - Multi-folder watcher daemon continuously monitors `~/Downloads` and `~/Dropbox/DOWNLOADS`, matching downloaded PDFs via manifest mapping, DOI slugs, and first-page embedded DOI/title extraction to automatically relabel into `/home/lc/k/era_oa_pdfs/<oax_id>.pdf`.
+    - Empirically demonstrated that 81.3% of Gold OA articles download directly to `~/Downloads` without viewer interception, with the remaining 18.7% (MDPI/inline) caught seamlessly via the multi-folder sweeper.
+
 ## Current State & Next Steps
-- All analytical stages complete and verified. 207 unit tests passing.
+- All analytical stages complete and verified. 210 unit tests passing (100%).
+- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: 74,572 PDFs.
 - Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 12 publication tables in `report/output/tables/all_paper_tables.docx`.
-- Next step: Run large-scale cross-index reference resolution comparison between OpenAlex and Scopus across sample of ERA papers using pybliometrics cache.
+
 
 

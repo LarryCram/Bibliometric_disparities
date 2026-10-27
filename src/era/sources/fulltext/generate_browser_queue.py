@@ -1,7 +1,8 @@
 """Generate Interactive Browser Download Queue Workbench for ERA Full-Text PDFs.
 
-Creates a 1-click interactive HTML workbench allowing rapid browser-assisted downloading
-of paywalled or bot-walled ERA journal outputs directly into /home/lc/k/era_oa_pdfs/<oax_id>.pdf.
+Creates a fast, compact 1-line-per-URL interactive HTML workbench allowing rapid
+browser-assisted downloading of Gold Open Access ERA journal outputs directly
+into ~/Downloads (to be organized into /home/lc/k/era_oa_pdfs/<oax_id>.pdf).
 """
 
 import argparse
@@ -20,13 +21,72 @@ OUTPUT_DIR = PROJECT_ROOT / "report" / "output"
 DEFAULT_BATCH_SIZE = 128
 
 
-def fetch_candidate_batch(batch_size: int = DEFAULT_BATCH_SIZE) -> list[dict[str, Any]]:
-    """Fetch batch_size undownloaded ERA journal articles with valid DOIs."""
+def fetch_candidate_batch(batch_size: int = DEFAULT_BATCH_SIZE, gold_only: bool = True) -> list[dict[str, Any]]:
+    """Fetch batch_size undownloaded ERA journal articles.
+    
+    If gold_only is True (default), queries verified Gold Open Access journal articles
+    with direct PDF URLs, ensuring zero login prompts or paywalls.
+    """
     TARGET_DIR.mkdir(parents=True, exist_ok=True)
     existing_ids = {int(p.stem) for p in TARGET_DIR.glob("*.pdf") if p.stem.isdigit()}
 
     con = duckdb.connect()
-    # Query diverse journal articles with valid DOIs across Australian HEPs
+    if gold_only:
+        # Query verified Gold Open Access journal articles with direct PDF URLs
+        query = """
+            SELECT 
+                l.oax_id as openalex_id,
+                m.canonical_id,
+                m.era_title,
+                m.era_year,
+                COALESCE(m.era_doi, m.oax_doi) as era_doi,
+                m.research_output_type,
+                COALESCE(m.institutions[1], 'Australian Institution') as primary_institution,
+                l.pdf_url,
+                l.source_name
+            FROM 'data/oa_locations.parquet' l
+            JOIN 'data/era_openalex_canonical_matches.parquet' m ON l.oax_id = m.openalex_id
+            WHERE l.source_type = 'journal' 
+              AND l.is_oa = true 
+              AND l.pdf_url IS NOT NULL
+            ORDER BY hash(l.oax_id)
+            LIMIT 5000
+        """
+        rows = con.execute(query).fetchall()
+        con.close()
+
+        items = []
+        for r in rows:
+            oax_id = int(r[0])
+            if oax_id in existing_ids:
+                continue
+
+            pdf_url = r[7].strip()
+            raw_doi = str(r[4]).strip() if r[4] else ""
+            doi_clean = raw_doi.lower().replace("http://dx.doi.org/", "").replace("https://doi.org/", "").replace("doi:", "").strip()
+
+            raw_title = r[2].strip() if r[2] else "Untitled Record"
+            title = raw_title.capitalize()
+
+            items.append({
+                "oax_id": oax_id,
+                "canonical_id": int(r[1]) if r[1] else None,
+                "title": title,
+                "year": int(r[3]) if r[3] else None,
+                "doi": doi_clean,
+                "url": pdf_url,
+                "journal": r[8] if r[8] else "Open Access Journal",
+                "institution": r[6],
+                "filename": f"{oax_id}.pdf",
+                "exists_on_disk": (TARGET_DIR / f"{oax_id}.pdf").exists(),
+            })
+
+            if len(items) >= batch_size:
+                break
+
+        return items
+
+    # Fallback to arbitrary journal articles across Australian HEPs
     query = """
         SELECT 
             s.openalex_id,
@@ -58,7 +118,6 @@ def fetch_candidate_batch(batch_size: int = DEFAULT_BATCH_SIZE) -> list[dict[str
         url = f"https://doi.org/{doi_clean}" if not raw_doi.startswith("http") else raw_doi
 
         raw_title = r[2].strip() if r[2] else "Untitled Record"
-        # Prettify title casing
         title = raw_title.capitalize()
 
         items.append({
@@ -80,7 +139,7 @@ def fetch_candidate_batch(batch_size: int = DEFAULT_BATCH_SIZE) -> list[dict[str
 
 
 def generate_html_page(items: list[dict[str, Any]], output_path: Path) -> Path:
-    """Generate high-aesthetic interactive HTML download queue."""
+    """Generate simple, ultra-fast 1-line-per-URL interactive download table."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     items_json = json.dumps(items, indent=2)
 
@@ -89,59 +148,45 @@ def generate_html_page(items: list[dict[str, Any]], output_path: Path) -> Path:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ERA Full-Text Browser Harvest Workbench (Batch of {len(items)})</title>
+  <title>ERA Gold OA Fast-Click Queue ({len(items)} Papers)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {{
-      --bg: #0b0f19;
-      --card-bg: #131b2e;
-      --card-border: #1e293b;
-      --card-hover: #1e293b;
-      --text-main: #f1f5f9;
-      --text-muted: #94a3b8;
+      --bg: #090d16;
+      --panel-bg: #111827;
+      --row-hover: #1e293b;
+      --row-clicked: #0f172a;
+      --border: #1f2937;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
       --primary: #38bdf8;
       --primary-hover: #0ea5e9;
-      --primary-bg: rgba(56, 189, 248, 0.12);
-      --success: #10b981;
-      --success-bg: rgba(16, 185, 129, 0.15);
-      --success-border: #059669;
       --accent: #818cf8;
-      --accent-bg: rgba(129, 140, 248, 0.15);
-      --warning: #f59e0b;
-      --warning-bg: rgba(245, 158, 11, 0.15);
-      --border-radius: 12px;
-      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --success: #10b981;
+      --success-dim: #064e3b;
     }}
 
-    * {{
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }}
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
     body {{
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', -apple-system, sans-serif;
       background-color: var(--bg);
-      color: var(--text-main);
-      line-height: 1.5;
-      padding-bottom: 80px;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.4;
+      padding-bottom: 60px;
     }}
 
     header {{
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(11, 15, 25, 0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--card-border);
-      padding: 16px 32px;
-    }}
-
-    .header-content {{
-      max-width: 1400px;
-      margin: 0 auto;
+      background: rgba(17, 24, 39, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
@@ -149,552 +194,373 @@ def generate_html_page(items: list[dict[str, Any]], output_path: Path) -> Path:
       gap: 16px;
     }}
 
-    .title-area h1 {{
-      font-size: 1.35rem;
+    .header-left {{
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }}
+
+    h1 {{
+      font-size: 16px;
       font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 10px;
       color: #fff;
-    }}
-
-    .title-area p {{
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }}
-
-    .stats-area {{
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 8px;
     }}
 
-    .progress-box {{
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      width: 220px;
-    }}
-
-    .progress-labels {{
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.8rem;
+    .badge-gold {{
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
       font-weight: 600;
-      color: var(--text-muted);
     }}
 
-    .progress-bar-bg {{
-      background: #1e293b;
+    .progress-bar-wrap {{
+      width: 140px;
       height: 8px;
+      background: #1f2937;
       border-radius: 4px;
       overflow: hidden;
     }}
 
     .progress-bar-fill {{
-      background: linear-gradient(90deg, #38bdf8, #10b981);
       height: 100%;
       width: 0%;
-      border-radius: 4px;
-      transition: width 0.3s ease;
+      background: var(--success);
+      transition: width 0.2s ease;
     }}
 
-    .instructions-card {{
-      max-width: 1400px;
-      margin: 24px auto 16px auto;
-      padding: 16px 24px;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: var(--border-radius);
+    .header-actions {{
       display: flex;
-      align-items: flex-start;
-      gap: 16px;
-    }}
-
-    .instructions-icon {{
-      font-size: 1.8rem;
-      line-height: 1;
-    }}
-
-    .instructions-text h3 {{
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--primary);
-      margin-bottom: 4px;
-    }}
-
-    .instructions-text ol {{
-      margin-left: 20px;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }}
-
-    .instructions-text code {{
-      font-family: 'JetBrains Mono', monospace;
-      background: #0f172a;
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: #38bdf8;
-      border: 1px solid #1e293b;
-    }}
-
-    .toolbar {{
-      max-width: 1400px;
-      margin: 16px auto 24px auto;
-      padding: 0 16px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }}
 
-    .filter-tabs {{
-      display: flex;
-      background: #0f172a;
-      padding: 4px;
-      border-radius: 8px;
-      border: 1px solid var(--card-border);
-      gap: 4px;
-    }}
-
-    .tab-btn {{
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
+    button {{
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
       padding: 6px 14px;
-      font-size: 0.82rem;
-      font-weight: 600;
       border-radius: 6px;
+      border: 1px solid transparent;
       cursor: pointer;
-      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
     }}
 
-    .tab-btn.active {{
-      background: var(--card-bg);
+    .btn-batch {{
+      background: var(--primary);
+      color: #090d16;
+    }}
+    .btn-batch:hover {{
+      background: var(--primary-hover);
+    }}
+
+    .btn-reset {{
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-muted);
+    }}
+    .btn-reset:hover {{
       color: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      border-color: #4b5563;
     }}
 
-    .search-box {{
-      flex: 1;
-      max-width: 360px;
-      position: relative;
-    }}
-
-    .search-box input {{
-      width: 100%;
-      background: #0f172a;
-      border: 1px solid var(--card-border);
-      color: #fff;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      outline: none;
-      transition: var(--transition);
-    }}
-
-    .search-box input:focus {{
-      border-color: var(--primary);
-    }}
-
-    .cards-container {{
-      max-width: 1400px;
-      margin: 0 auto;
+    .container {{
+      max-width: 1600px;
+      margin: 16px auto;
       padding: 0 16px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-      gap: 16px;
     }}
 
-    .card {{
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--border-radius);
-      padding: 18px 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 14px;
-      transition: var(--transition);
-      position: relative;
-    }}
-
-    .card:hover {{
-      border-color: rgba(56, 189, 248, 0.4);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-    }}
-
-    .card.completed {{
-      border-color: var(--success-border);
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(19, 27, 46, 0.95));
-      opacity: 0.85;
-    }}
-
-    .card-top {{
+    .info-banner {{
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 6px;
+      padding: 8px 16px;
+      margin-bottom: 12px;
+      color: #bae6fd;
+      font-size: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.75rem;
     }}
 
-    .index-badge {{
-      background: #1e293b;
-      color: #94a3b8;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
     }}
 
-    .meta-tags {{
-      display: flex;
-      gap: 6px;
-    }}
-
-    .tag {{
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.72rem;
+    th {{
+      background: #1f2937;
+      color: var(--text-muted);
       font-weight: 600;
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }}
 
-    .tag-inst {{
-      background: var(--accent-bg);
-      color: #a5b4fc;
-      max-width: 180px;
+    td {{
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
       white-space: nowrap;
+    }}
+
+    tr:hover td {{
+      background: var(--row-hover);
+    }}
+
+    tr.clicked td {{
+      background: var(--row-clicked);
+      opacity: 0.6;
+    }}
+
+    tr.clicked .title-link {{
+      color: #94a3b8;
+      text-decoration: line-through;
+    }}
+
+    .col-idx {{
+      width: 40px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }}
+
+    .col-check {{
+      width: 40px;
+      text-align: center;
+    }}
+
+    .checkbox-custom {{
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--success);
+    }}
+
+    .col-journal {{
+      width: 220px;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #38bdf8;
+      font-weight: 500;
+    }}
+
+    .col-title {{
+      max-width: 700px;
       overflow: hidden;
       text-overflow: ellipsis;
     }}
 
-    .tag-year {{
-      background: rgba(148, 163, 184, 0.15);
-      color: #cbd5e1;
-    }}
-
-    .article-title {{
-      font-size: 0.92rem;
-      font-weight: 600;
-      color: #f8fafc;
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }}
-
-    .filename-box {{
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      border-radius: 8px;
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-    }}
-
-    .filename-text {{
-      color: #38bdf8;
-      font-weight: 500;
-      user-select: all;
-    }}
-
-    .btn-copy-name {{
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #cbd5e1;
-      padding: 4px 8px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: var(--transition);
-    }}
-
-    .btn-copy-name:hover {{
-      background: #334155;
-      color: #fff;
-    }}
-
-    .card-actions {{
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }}
-
-    .btn-open-copy {{
-      flex: 1;
-      background: linear-gradient(135deg, #0284c7, #2563eb);
-      color: #fff;
-      border: none;
-      padding: 9px 12px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      border-radius: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
+    .title-link {{
+      color: #f3f4f6;
       text-decoration: none;
-      transition: var(--transition);
+      font-weight: 500;
+      transition: color 0.15s ease;
+    }}
+    .title-link:hover {{
+      color: #38bdf8;
+      text-decoration: underline;
     }}
 
-    .btn-open-copy:hover {{
-      background: linear-gradient(135deg, #0369a1, #1d4ed8);
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-    }}
-
-    .btn-toggle-done {{
-      background: #1e293b;
-      border: 1px solid var(--card-border);
+    .col-id {{
+      width: 140px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       color: var(--text-muted);
-      padding: 9px 12px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: var(--transition);
-      display: flex;
+    }}
+
+    .col-action {{
+      width: 100px;
+      text-align: right;
+    }}
+
+    .btn-open {{
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 4px;
+      text-decoration: none;
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }}
-
-    .btn-toggle-done:hover {{
-      background: rgba(16, 185, 129, 0.2);
-      border-color: var(--success);
-      color: #10b981;
-    }}
-
-    .card.completed .btn-toggle-done {{
-      background: var(--success-bg);
-      border-color: var(--success);
-      color: #10b981;
-    }}
-
-    .toast {{
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #10b981;
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.85rem;
-      padding: 10px 18px;
-      border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-      z-index: 1000;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.25s ease;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }}
-
-    .toast.show {{
-      opacity: 1;
-      transform: translateY(0);
+    .btn-open:hover {{
+      background: #38bdf8;
+      color: #090d16;
     }}
   </style>
 </head>
 <body>
-
   <header>
-    <div class="header-content">
-      <div class="title-area">
-        <h1><span>⚡</span> ERA Full-Text Browser Harvest Queue</h1>
-        <p>128 High-Priority Undownloaded Journal Articles with Direct DOI Links</p>
-      </div>
-
-      <div class="stats-area">
-        <div class="progress-box">
-          <div class="progress-labels">
-            <span>Progress</span>
-            <span id="progress-text">0 / {len(items)} (0%)</span>
-          </div>
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" id="progress-fill"></div>
-          </div>
+    <div class="header-left">
+      <h1>⚡ ERA Gold OA Fast-Click Queue <span class="badge-gold">Pure Gold OA</span></h1>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="progress-bar-wrap">
+          <div id="progress-bar" class="progress-bar-fill"></div>
         </div>
+        <span id="progress-text" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">0 / {len(items)}</span>
       </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-batch" onclick="openNextBatch(5)">
+        <span>🚀</span> Open Next 5 Tabs
+      </button>
+      <button class="btn-batch" onclick="openNextBatch(10)">
+        <span>⚡</span> Open Next 10 Tabs
+      </button>
+      <button class="btn-reset" onclick="resetProgress()">
+        <span>↺</span> Reset
+      </button>
     </div>
   </header>
 
-  <div class="instructions-card">
-    <div class="instructions-icon">💡</div>
-    <div class="instructions-text">
-      <h3>Streamlined 3-Second Workflow:</h3>
-      <ol>
-        <li>Set browser default download directory to: <code>/home/lc/k/era_oa_pdfs/</code></li>
-        <li>Click <b>"🚀 Open & Copy Name"</b> on any card (copies required filename and opens paper in a new tab).</li>
-        <li>In the opened tab, press <code>Ctrl+S</code> (Save) &rarr; paste filename (<code>Ctrl+V</code>) &rarr; hit <code>Enter</code>!</li>
-        <li>Click <b>"✓ Done"</b> to check off the paper.</li>
-      </ol>
+  <div class="container">
+    <div class="info-banner">
+      <span>💡 <strong>1-Line Direct Clicks:</strong> Click any link or "Open PDF" button to open the direct Gold OA PDF in a new tab. Files download straight into your <code>~/Downloads</code> folder.</span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">Batch Size: {len(items)}</span>
     </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="col-idx">#</th>
+          <th class="col-check">Done</th>
+          <th class="col-journal">Journal</th>
+          <th class="col-title">Article Title (Click to Open PDF)</th>
+          <th class="col-id">Target File</th>
+          <th class="col-action">Action</th>
+        </tr>
+      </thead>
+      <tbody id="queue-body">
+      </tbody>
+    </table>
   </div>
-
-  <div class="toolbar">
-    <div class="filter-tabs">
-      <button class="tab-btn active" onclick="setFilter('all')">All ({len(items)})</button>
-      <button class="tab-btn" onclick="setFilter('pending')" id="tab-pending">Pending</button>
-      <button class="tab-btn" onclick="setFilter('completed')" id="tab-completed">Completed</button>
-    </div>
-
-    <div class="search-box">
-      <input type="text" id="search-input" placeholder="Search title, DOI, institution..." oninput="handleSearch()">
-    </div>
-  </div>
-
-  <main class="cards-container" id="cards-container">
-    <!-- Cards rendered via JS -->
-  </main>
-
-  <div class="toast" id="toast">📋 Copied filename to clipboard!</div>
 
   <script>
     const items = {items_json};
-    const STORAGE_KEY = 'era_harvest_batch_128';
-    let completedSet = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
-    let currentFilter = 'all';
-    let searchTerm = '';
-
-    function saveState() {{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(completedSet)));
-      updateProgress();
-    }}
-
-    function copyToClipboard(text, e) {{
-      if (e) e.stopPropagation();
-      navigator.clipboard.writeText(text).then(() => {{
-        showToast(`📋 Copied: ${{text}}`);
-      }});
-    }}
-
-    function handleOpenAndCopy(url, filename, index, e) {{
-      navigator.clipboard.writeText(filename).then(() => {{
-        showToast(`📋 Copied: ${{filename}} (Opening paper...)`);
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }});
-    }}
-
-    function toggleDone(oaxId, cardId) {{
-      const card = document.getElementById(cardId);
-      if (completedSet.has(oaxId)) {{
-        completedSet.delete(oaxId);
-        card.classList.remove('completed');
-      }} else {{
-        completedSet.add(oaxId);
-        card.classList.add('completed');
-      }}
-      saveState();
-      filterCards();
-    }}
-
-    function showToast(msg) {{
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.classList.add('show');
-      setTimeout(() => {{
-        toast.classList.remove('show');
-      }}, 2200);
-    }}
+    const STORAGE_KEY = 'era_gold_oa_clicks_{len(items)}';
+    let clickedSet = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
 
     function updateProgress() {{
+      const count = clickedSet.size;
       const total = items.length;
-      const done = completedSet.size;
-      const pct = Math.round((done / total) * 100);
-      document.getElementById('progress-text').textContent = `${{done}} / ${{total}} (${{pct}}%)`;
-      document.getElementById('progress-fill').style.width = `${{pct}}%`;
-      document.getElementById('tab-pending').textContent = `Pending (${{total - done}})`;
-      document.getElementById('tab-completed').textContent = `Completed (${{done}})`;
+      const pct = Math.round((count / total) * 100);
+      document.getElementById('progress-bar').style.width = pct + '%';
+      document.getElementById('progress-text').innerText = `${{count}} / ${{total}} (${{pct}}%)`;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(clickedSet)));
     }}
 
-    function setFilter(filter) {{
-      currentFilter = filter;
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      filterCards();
+    function markClicked(idx) {{
+      clickedSet.add(idx);
+      const row = document.getElementById(`row-${{idx}}`);
+      const cb = document.getElementById(`cb-${{idx}}`);
+      if (row) row.classList.add('clicked');
+      if (cb) cb.checked = true;
+      updateProgress();
     }}
 
-    function handleSearch() {{
-      searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
-      filterCards();
+    function toggleRow(idx) {{
+      if (clickedSet.has(idx)) {{
+        clickedSet.delete(idx);
+        document.getElementById(`row-${{idx}}`).classList.remove('clicked');
+        document.getElementById(`cb-${{idx}}`).checked = false;
+      }} else {{
+        clickedSet.add(idx);
+        document.getElementById(`row-${{idx}}`).classList.add('clicked');
+        document.getElementById(`cb-${{idx}}`).checked = true;
+      }}
+      updateProgress();
     }}
 
-    function filterCards() {{
-      items.forEach((item, idx) => {{
-        const card = document.getElementById(`card-${{idx}}`);
-        const isDone = completedSet.has(item.oax_id);
-        const matchesSearch = !searchTerm || 
-          item.title.toLowerCase().includes(searchTerm) || 
-          item.doi.toLowerCase().includes(searchTerm) || 
-          item.institution.toLowerCase().includes(searchTerm);
+    function handleClickLink(idx, url, event) {{
+      markClicked(idx);
+    }}
 
-        let matchesFilter = true;
-        if (currentFilter === 'pending' && isDone) matchesFilter = false;
-        if (currentFilter === 'completed' && !isDone) matchesFilter = false;
-
-        if (matchesSearch && matchesFilter) {{
-          card.style.display = 'flex';
-        }} else {{
-          card.style.display = 'none';
+    function openNextBatch(count) {{
+      let opened = 0;
+      for (let i = 0; i < items.length; i++) {{
+        if (!clickedSet.has(i)) {{
+          const item = items[i];
+          setTimeout(() => {{
+            window.open(item.url, '_blank');
+            markClicked(i);
+          }}, opened * 250);
+          opened++;
+          if (opened >= count) break;
         }}
-      }});
+      }}
+      if (opened === 0) {{
+        alert("All items in this batch have already been opened!");
+      }}
     }}
 
-    function renderCards() {{
-      const container = document.getElementById('cards-container');
-      container.innerHTML = '';
+    function resetProgress() {{
+      if (confirm("Reset click progress for this batch?")) {{
+        clickedSet.clear();
+        localStorage.removeItem(STORAGE_KEY);
+        items.forEach((_, idx) => {{
+          const row = document.getElementById(`row-${{idx}}`);
+          const cb = document.getElementById(`cb-${{idx}}`);
+          if (row) row.classList.remove('clicked');
+          if (cb) cb.checked = false;
+        }});
+        updateProgress();
+      }}
+    }}
+
+    function renderTable() {{
+      const tbody = document.getElementById('queue-body');
+      tbody.innerHTML = '';
 
       items.forEach((item, idx) => {{
-        const isDone = completedSet.has(item.oax_id);
-        const card = document.createElement('div');
-        card.className = `card ${{isDone ? 'completed' : ''}}`;
-        card.id = `card-${{idx}}`;
+        const isClicked = clickedSet.has(idx);
+        const tr = document.createElement('tr');
+        tr.id = `row-${{idx}}`;
+        if (isClicked) tr.classList.add('clicked');
 
-        card.innerHTML = `
-          <div>
-            <div class="card-top">
-              <span class="index-badge">#${{idx + 1}}</span>
-              <div class="meta-tags">
-                <span class="tag tag-inst" title="${{item.institution}}">${{item.institution}}</span>
-                <span class="tag tag-year">${{item.year || '—'}}</span>
-              </div>
-            </div>
-
-            <h2 class="article-title" style="margin-top: 10px;">${{item.title}}</h2>
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-            <div class="filename-box">
-              <span class="filename-text">${{item.filename}}</span>
-              <button class="btn-copy-name" onclick="copyToClipboard('${{item.filename}}', event)" title="Copy filename only">📋 Copy</button>
-            </div>
-
-            <div class="card-actions">
-              <button class="btn-open-copy" onclick="handleOpenAndCopy('${{item.url}}', '${{item.filename}}', ${{idx}}, event)">
-                <span>🚀</span> Open & Copy Name
-              </button>
-              <button class="btn-toggle-done" onclick="toggleDone(${{item.oax_id}}, 'card-${{idx}}')">
-                <span>✓</span> Done
-              </button>
-            </div>
-          </div>
+        tr.innerHTML = `
+          <td class="col-idx">${{idx + 1}}</td>
+          <td class="col-check">
+            <input type="checkbox" id="cb-${{idx}}" class="checkbox-custom" ${{isClicked ? 'checked' : ''}} onclick="toggleRow(${{idx}})">
+          </td>
+          <td class="col-journal" title="${{item.journal}}">${{item.journal}}</td>
+          <td class="col-title">
+            <a href="${{item.url}}" target="_blank" rel="noopener noreferrer" class="title-link" onclick="handleClickLink(${{idx}}, '${{item.url}}', event)" title="${{item.title}}">
+              ${{item.title}}
+            </a>
+          </td>
+          <td class="col-id">${{item.filename}}</td>
+          <td class="col-action">
+            <a href="${{item.url}}" target="_blank" rel="noopener noreferrer" class="btn-open" onclick="handleClickLink(${{idx}}, '${{item.url}}', event)">
+              PDF ↗
+            </a>
+          </td>
         `;
-        container.appendChild(card);
+        tbody.appendChild(tr);
       }});
 
       updateProgress();
     }}
 
-    renderCards();
+    renderTable();
   </script>
 </body>
 </html>

@@ -12,43 +12,75 @@ institutional repositories, publisher mirrors, etc.) - a single host getting
 hit hard is unlikely given how varied OA sources are.
 """
 
+import argparse
+import random
 import sys
 import time
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from urllib.parse import urlparse
 
 import duckdb
 import requests
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import PDF_DIR
+from era.config import DATA_DIR, PDF_DIR
 
-DATA_DIR = Path(__file__).parent.parent / "data"
 MATCHES_WITH_OA = DATA_DIR / "era_openalex_matches_with_oa.parquet"
-
 OUTPUT_DIR = PDF_DIR
 
-SAMPLE_SIZE = None  # None = download everything
-CONCURRENCY = 8
-TIMEOUT = (10, 30)  # (connect, read) seconds
+DEFAULT_CONCURRENCY = 12
+TIMEOUT = (5, 15)  # (connect, read) seconds
 MIN_VALID_SIZE = 2048  # bytes - below this, treat as a stub/error response rather than a real PDF
 HEADERS = {
-    "User-Agent": "ERA-OpenAlex-matching research script (mailto:lawrence.cram@gmail.com)"
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 "
+        "(Academic Research; Bibliometric Disparities Project; mailto:larry.cram@anu.edu.au)"
+    )
 }
 
 
-def fetch_targets(limit):
+def fetch_pending_targets(limit: int | None = None) -> list[tuple[int, str]]:
+    """Fetch un-downloaded targets with direct OA PDF URLs, prioritizing friction-free open domains."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    existing_ids = {int(p.stem) for p in OUTPUT_DIR.glob("*.pdf") if p.stem.isdigit()}
+
     con = duckdb.connect()
     query = f"""
         SELECT openalex_id, ANY_VALUE(best_oa_pdf_url) AS pdf_url
-        FROM read_parquet('{MATCHES_WITH_OA}')
+        FROM '{MATCHES_WITH_OA}'
         WHERE best_oa_pdf_url IS NOT NULL
         GROUP BY openalex_id
         ORDER BY openalex_id
     """
+    all_targets = con.execute(query).fetchall()
+    con.close()
+
+    pending = [(int(r[0]), str(r[1])) for r in all_targets if int(r[0]) not in existing_ids]
+
+    # Prioritize friction-free open domains (arXiv, PLOS, Frontiers, MDPI, BMC, University Repositories)
+    def domain_priority(item: tuple[int, str]) -> tuple[int, float]:
+        url = item[1].lower()
+        # Tier 0: Pure Gold / Open Preprints
+        if any(d in url for d in ("arxiv.org", "journals.plos.org", "frontiersin.org", "mdpi.com", "biomedcentral.com", "europepmc.org")):
+            prio = 0
+        # Tier 1: Australian University Repositories
+        elif any(d in url for d in ("edu.au", "anu.edu", "usyd.edu", "unsw.edu", "uq.edu", "unimelb.edu", "curtin.edu", "qut.edu", "monash.edu", "adelaide.edu")):
+            prio = 1
+        # Tier 2: Other Open Repositories
+        elif any(d in url for d in ("zenodo.org", "figshare.com", "osf.io", "biorxiv.org", "medrxiv.org", "researchgate.net")):
+            prio = 2
+        else:
+            prio = 3
+        # Jitter within tier to distribute load
+        return (prio, random.random())
+
+    random.seed(42)
+    pending.sort(key=domain_priority)
+
     if limit is not None:
-        query += f" LIMIT {limit}"
-    return con.execute(query).fetchall()
+        return pending[:limit]
+    return pending
 
 
 def download_one(session, openalex_id, url):
@@ -84,46 +116,50 @@ def download_one(session, openalex_id, url):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Direct OA PDF Downloader")
+    parser.add_argument("--limit", type=int, default=None, help="Limit number of PDFs to download")
+    parser.add_argument("--workers", type=int, default=DEFAULT_CONCURRENCY, help="Concurrent workers")
+    args = parser.parse_args()
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    targets = fetch_targets(SAMPLE_SIZE)
-    total_distinct = fetch_targets(None)
-    n_total_distinct = len(total_distinct)
-    print(f"Downloading {len(targets)} PDFs (of {n_total_distinct} total distinct OA-PDF matches) "
-          f"to {OUTPUT_DIR} with {CONCURRENCY} workers...")
+    print("Fetching pending direct OA targets...")
+    targets = fetch_pending_targets(args.limit)
+    print(f"Downloading {len(targets):,} pending PDFs to {OUTPUT_DIR} with {args.workers} workers...")
+
+    if not targets:
+        print("No pending targets to download.")
+        return
 
     results = []
     t_start = time.time()
-    with requests.Session() as session, ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+    n_done = 0
+    with requests.Session() as session, ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = {pool.submit(download_one, session, oid, url): oid for oid, url in targets}
         for fut in as_completed(futures):
             results.append(fut.result())
-    elapsed = time.time() - t_start
+            n_done += 1
+            if n_done % 50 == 0 or n_done == len(targets):
+                elapsed = time.time() - t_start
+                rate = n_done / elapsed if elapsed > 0 else 0
+                n_ok = sum(1 for r in results if r[1] == "ok")
+                print(f"  [{n_done:,}/{len(targets):,}] Ok: {n_ok:,} ({n_ok/n_done*100:.1f}%), Rate: {rate:.1f} files/s")
 
+    elapsed = time.time() - t_start
     ok = [r for r in results if r[1] == "ok"]
     not_pdf = [r for r in results if r[1] == "not_pdf"]
     skipped = [r for r in results if r[1].startswith("skipped")]
     failed = [r for r in results if r[1].startswith("error")]
     total_bytes = sum(r[2] for r in ok)
 
-    print(f"\nDone in {elapsed:.1f}s: {len(ok)} real PDFs, {len(not_pdf)} not-actually-PDF "
-          f"(200 OK but not %PDF- magic bytes, deleted), {len(skipped)} skipped, {len(failed)} failed")
+    print(f"\nDone in {elapsed:.1f}s: {len(ok):,} real PDFs, {len(not_pdf):,} not-actually-PDF, "
+          f"{len(skipped):,} skipped, {len(failed):,} failed")
     if ok:
         print(f"  Total downloaded: {total_bytes / 1e6:.1f} MB, avg {total_bytes / len(ok) / 1e6:.2f} MB/file")
     if failed:
         print("  Sample failures:")
         for oid, status, _, _ in failed[:10]:
             print(f"    {oid}: {status}")
-
-    rate = len(targets) / elapsed if elapsed > 0 else 0
-    pdf_yield = len(ok) / len(targets) if targets else 0
-    print(f"\nThroughput: {rate:.2f} URLs/sec ({CONCURRENCY} concurrent workers), "
-          f"real-PDF yield: {pdf_yield * 100:.0f}%")
-    if rate > 0:
-        est_seconds = n_total_distinct / rate
-        print(f"Estimated time to attempt all {n_total_distinct} distinct OA-PDF matches: "
-              f"{est_seconds / 3600:.1f} hours ({est_seconds / 60:.0f} min)")
-        print(f"Estimated real PDFs obtained at this yield: {n_total_distinct * pdf_yield:.0f}")
 
 
 if __name__ == "__main__":

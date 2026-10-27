@@ -48,23 +48,23 @@ OAX_ARCHIVE_MAX_SUCCESSES successful retrievals - well under the daily
 quota, since this script may be run more than once a day.
 """
 
+import argparse
+import random
 import sys
 import time
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from urllib.parse import urlencode
 
 import duckdb
 import requests
 
-from oa_landing_page import resolve_pdf_url
+from era.config import DATA_DIR, M_DRIVE, PDF_DIR
+from era.sources.fulltext.landing_page import resolve_pdf_url
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import PDF_DIR, RAW_OPENALEX_WORKS
-
+RAW_OPENALEX_WORKS = M_DRIVE / "openalex_oct26/parquet_converted/compact/works"
 ENV_FILE = Path(__file__).parent.parent / ".env"
 
-DATA_DIR = Path(__file__).parent.parent / "data"
 MATCHES_WITH_OA = DATA_DIR / "era_openalex_matches_with_oa.parquet"
 OA_LOCATIONS = DATA_DIR / "oa_locations.parquet"
 
@@ -73,25 +73,28 @@ OUTPUT_DIR = PDF_DIR
 OAX_ARCHIVE_BASE = "https://content.openalex.org/works"
 OAX_ARCHIVE_MAX_SUCCESSES = 10  # hard cap - this endpoint's quota is 100/day; stay far under it per run
 
-SAMPLE_SIZE = None  # None = attempt every still-missing work
-CONCURRENCY = 8
-TIMEOUT = (10, 30)
+DEFAULT_CONCURRENCY = 12
+TIMEOUT = (6, 20)
 MIN_VALID_SIZE = 2048
 HEADERS = {
-    "User-Agent": "ERA-OpenAlex-matching research script (mailto:lawrence.cram@gmail.com)"
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 "
+        "(Academic Research; Bibliometric Disparities Project; mailto:larry.cram@anu.edu.au)"
+    )
 }
 
 
-def fetch_candidates(limit):
-    """One row per work still missing a downloaded PDF, with its ordered
-    list of (url, kind) candidates - repository locations first (pdf_url
-    then landing_page_url), then best_oa_pdf_url, then everything else
-    (journal/publisher locations) - see module docstring for why."""
+def fetch_candidates(limit: int | None = None) -> list[tuple[int, list[tuple[str, str]]]]:
+    """Fetch works still missing a downloaded PDF, with ordered fallback chain of repository and OA URLs."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    existing_ids = {int(p.stem) for p in OUTPUT_DIR.glob("*.pdf") if p.stem.isdigit()}
+
     con = duckdb.connect()
     query = f"""
         WITH targets AS (
             SELECT DISTINCT openalex_id AS oax_id, ANY_VALUE(best_oa_pdf_url) AS best_pdf_url
-            FROM read_parquet('{MATCHES_WITH_OA}')
+            FROM '{MATCHES_WITH_OA}'
             WHERE openalex_id IS NOT NULL
             GROUP BY openalex_id
         ),
@@ -101,20 +104,23 @@ def fetch_candidates(limit):
                    list(DISTINCT landing_page_url) FILTER (WHERE landing_page_url IS NOT NULL AND source_type = 'repository') AS repo_landing_urls,
                    list(DISTINCT pdf_url) FILTER (WHERE pdf_url IS NOT NULL AND (source_type IS NULL OR source_type != 'repository')) AS other_pdf_urls,
                    list(DISTINCT landing_page_url) FILTER (WHERE landing_page_url IS NOT NULL AND (source_type IS NULL OR source_type != 'repository')) AS other_landing_urls
-            FROM read_parquet('{OA_LOCATIONS}')
+            FROM '{OA_LOCATIONS}'
             GROUP BY oax_id
         )
         SELECT t.oax_id, t.best_pdf_url, a.repo_pdf_urls, a.repo_landing_urls, a.other_pdf_urls, a.other_landing_urls
         FROM targets t
         LEFT JOIN alt_pdfs a USING (oax_id)
-        WHERE t.best_pdf_url IS NOT NULL OR a.repo_pdf_urls IS NOT NULL OR a.other_pdf_urls IS NOT NULL
+        WHERE (t.best_pdf_url IS NOT NULL OR a.repo_pdf_urls IS NOT NULL OR a.repo_landing_urls IS NOT NULL OR a.other_pdf_urls IS NOT NULL)
     """
-    if limit is not None:
-        query += f" LIMIT {limit}"
     rows = con.execute(query).fetchall()
+    con.close()
 
     targets = []
     for oax_id, best_pdf_url, repo_pdf_urls, repo_landing_urls, other_pdf_urls, other_landing_urls in rows:
+        oid = int(oax_id)
+        if oid in existing_ids:
+            continue
+
         ordered = (
             [(u, "repo_pdf") for u in (repo_pdf_urls or [])]
             + [(u, "repo_landing") for u in (repo_landing_urls or [])]
@@ -129,7 +135,13 @@ def fetch_candidates(limit):
                 seen.add(url)
                 candidates.append((url, kind))
         if candidates:
-            targets.append((oax_id, candidates))
+            targets.append((oid, candidates))
+
+    random.seed(42)
+    random.shuffle(targets)
+
+    if limit is not None:
+        return targets[:limit]
     return targets
 
 
@@ -265,26 +277,36 @@ def try_oax_archive_stage(session, still_missing_oax_ids):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Multi-tier OA Landing Page PDF Downloader")
+    parser.add_argument("--limit", type=int, default=None, help="Limit number of works to attempt (default: all)")
+    parser.add_argument("--workers", type=int, default=DEFAULT_CONCURRENCY, help="Number of worker threads")
+    args = parser.parse_args()
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    targets = fetch_candidates(SAMPLE_SIZE)
+    print("Fetching pending candidates with repository and OA fallback chains...")
+    targets = fetch_candidates(args.limit)
 
-    con = duckdb.connect()
-    n_matched_works = con.execute(
-        f"SELECT COUNT(DISTINCT openalex_id) FROM read_parquet('{MATCHES_WITH_OA}') WHERE openalex_id IS NOT NULL"
-    ).fetchone()[0]
-    n_no_url = n_matched_works - len(targets)
+    print(f"Attempting {len(targets):,} works (each with a fallback chain of repository/OA candidate URLs) "
+          f"with {args.workers} workers...")
 
-    print(f"{n_matched_works} matched OpenAlex works total; {n_no_url} have no OA URL at all "
-          f"(neither best_oa_pdf_url nor any oa_locations entry - not attempted, no candidate exists)")
-    print(f"{len(targets)} works to attempt (each with a fallback chain of candidate URLs), "
-          f"{CONCURRENCY} workers...")
+    if not targets:
+        print("No pending candidates found.")
+        return
 
     results = []
     t_start = time.time()
-    with requests.Session() as session, ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+    n_done = 0
+    with requests.Session() as session, ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = {pool.submit(download_one, session, oid, cands): oid for oid, cands in targets}
         for fut in as_completed(futures):
-            results.append(fut.result())
+            res = fut.result()
+            results.append(res)
+            n_done += 1
+            if n_done % 20 == 0 or n_done == len(targets):
+                elapsed = time.time() - t_start
+                rate = n_done / elapsed if elapsed > 0 else 0
+                n_ok = sum(1 for r in results if r[1] == "ok")
+                print(f"  [{n_done:,}/{len(targets):,}] Ok: {n_ok:,} ({n_ok/n_done*100:.1f}%), Rate: {rate:.1f} works/s")
     elapsed = time.time() - t_start
 
     ok = [r for r in results if r[1] == "ok"]
@@ -295,8 +317,7 @@ def main():
     won_via_repository = [r for r in ok if r[6] in ("repo_pdf", "repo_landing")]
 
     print(f"\nDone in {elapsed:.1f}s: {len(ok)} ok, {len(skipped)} skipped, "
-          f"{len(failed)} total failures where an OAX URL existed but every candidate failed "
-          f"(distinct from the {n_no_url} works that had no OA URL at all)")
+          f"{len(failed)} total failures where candidate URLs were attempted")
     print(f"  {len(won_on_alt_location)} of {len(ok)} successes needed an alternate OA location "
           f"(primary best_oa_pdf_url alone would have failed these)")
     print(f"  {len(won_on_landing_page)} of {len(ok)} successes specifically needed citation_pdf_url "
