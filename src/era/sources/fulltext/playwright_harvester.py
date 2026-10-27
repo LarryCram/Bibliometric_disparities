@@ -204,7 +204,30 @@ def harvest_candidates(
                 except Exception:
                     pass
 
-                # 2. Fallback to HTML landing page buttons
+                # 2. Fallback to HTML landing page meta tags (Bepress, HighWire, Google Scholar)
+                if not saved and not page.is_closed():
+                    try:
+                        meta = page.locator(
+                            "meta[name='bepress_citation_pdf_url'], meta[name='citation_pdf_url']"
+                        ).first
+                        if meta.count() > 0:
+                            meta_url = meta.get_attribute("content")
+                            if meta_url and meta_url.startswith("http"):
+                                with page.expect_download(timeout=min(timeout, 10000)) as dl_meta:
+                                    try:
+                                        page.goto(meta_url, wait_until="commit", timeout=timeout)
+                                    except Exception as nav_e:
+                                        if "Download is starting" not in str(nav_e) and "net::ERR_ABORTED" not in str(nav_e):
+                                            raise
+                                dl_m = dl_meta.value
+                                dl_m.save_as(str(dest))
+                                sz = dest.stat().st_size
+                                print(f"  ✓ Meta URL Download: {sz/1024:.1f} KB in {time.time()-t0:.1f}s")
+                                saved = True
+                    except Exception:
+                        pass
+
+                # 3. Fallback to HTML landing page buttons
                 if not saved and not page.is_closed():
                     # Dismiss cookie banners if present
                     try:
@@ -220,8 +243,8 @@ def harvest_candidates(
 
                     # Look for PDF button / link
                     pdf_btn = page.locator(
-                        "a[data-article-pdf='true'], a:has-text('Download PDF'), "
-                        "a:has-text('PDF'), a[href*='.pdf']"
+                        "a#pdf, a[data-article-pdf='true'], a:has-text('Download PDF'), "
+                        "a.btn:has-text('Download'), a:has-text('PDF'), a[href*='.pdf']"
                     ).first
 
                     if pdf_btn and pdf_btn.is_visible(timeout=2500):

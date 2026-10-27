@@ -22,6 +22,8 @@ from era.sources.fulltext.playwright_harvester import (
 )
 
 PROVEN_PUBLISHERS = [
+    ("AISeL (Information Systems)", "aisel.aisnet.org"),
+    ("Oncotarget", "oncotarget"),
     ("ASM (Microbiology)", ".asm.org"),
     ("IOP (Institute of Physics)", "iopscience.iop.org"),
     ("MDPI", "mdpi"),
