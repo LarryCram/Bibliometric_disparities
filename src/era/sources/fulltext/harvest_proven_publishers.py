@@ -22,7 +22,7 @@ from era.sources.fulltext.playwright_harvester import (
 )
 
 PROVEN_PUBLISHERS = [
-    ("ASM (Microbiology)", "asm.org"),
+    ("ASM (Microbiology)", ".asm.org"),
     ("IOP (Institute of Physics)", "iopscience.iop.org"),
     ("MDPI", "mdpi"),
     ("JBC", "Journal of Biological Chemistry"),
