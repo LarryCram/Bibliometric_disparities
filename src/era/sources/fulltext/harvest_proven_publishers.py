@@ -22,13 +22,15 @@ from era.sources.fulltext.playwright_harvester import (
 )
 
 PROVEN_PUBLISHERS = [
+    ("ASM (Microbiology)", "asm.org"),
+    ("IOP (Institute of Physics)", "iopscience.iop.org"),
     ("MDPI", "mdpi"),
     ("JBC", "Journal of Biological Chemistry"),
+    ("Journal of Neuroscience", "Journal of Neuroscience"),
+    ("BMJ Open", "BMJ Open"),
     ("Paramedicine (ECU)", "ro.ecu.edu.au"),
     ("Royal Society B", "Proceedings of the Royal Society B"),
-    ("Journal of Neuroscience", "Journal of Neuroscience"),
     ("PNAS", "Proceedings of the National Academy of Sciences"),
-    ("BMJ Open", "BMJ Open"),
 ]
 
 
