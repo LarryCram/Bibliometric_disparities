@@ -24,13 +24,27 @@ CANONICAL_MATCHES = DATA_DIR / "era_openalex_canonical_matches.parquet"
 DEFAULT_PROFILE_DIR = Path.home() / ".config" / "era_chrome_profile"
 
 
-def fetch_gold_oa_candidates(limit: int | None = 100) -> list[dict[str, Any]]:
+def fetch_gold_oa_candidates(
+    limit: int | None = 100,
+    publisher: str | None = None,
+) -> list[dict[str, Any]]:
     """Fetch verified undownloaded Gold OA journal candidates with direct PDF links."""
     TARGET_DIR.mkdir(parents=True, exist_ok=True)
     existing_ids = {int(p.stem) for p in TARGET_DIR.glob("*.pdf") if p.stem.isdigit()}
 
     con = duckdb.connect()
-    query = """
+    where_conditions = [
+        "l.source_type = 'journal'",
+        "l.is_oa = true",
+        "l.pdf_url IS NOT NULL",
+    ]
+    params: list[Any] = []
+    if publisher:
+        where_conditions.append("(l.source_name ILIKE ? OR l.pdf_url ILIKE ?)")
+        params.extend([f"%{publisher}%", f"%{publisher}%"])
+
+    where_sql = " AND ".join(where_conditions)
+    query = f"""
         SELECT 
             l.oax_id as openalex_id,
             m.canonical_id,
@@ -40,12 +54,10 @@ def fetch_gold_oa_candidates(limit: int | None = 100) -> list[dict[str, Any]]:
             l.pdf_url
         FROM 'data/oa_locations.parquet' l
         JOIN 'data/era_openalex_canonical_matches.parquet' m ON l.oax_id = m.openalex_id
-        WHERE l.source_type = 'journal' 
-          AND l.is_oa = true 
-          AND l.pdf_url IS NOT NULL
+        WHERE {where_sql}
         ORDER BY hash(l.oax_id)
     """
-    rows = con.execute(query).fetchall()
+    rows = con.execute(query, params).fetchall()
     con.close()
 
     candidates = []
@@ -64,7 +76,7 @@ def fetch_gold_oa_candidates(limit: int | None = 100) -> list[dict[str, Any]]:
             "dest_path": TARGET_DIR / f"{oid}.pdf",
         })
 
-        if limit is not None and len(candidates) >= limit:
+        if limit is not None and limit > 0 and len(candidates) >= limit:
             break
 
     return candidates
@@ -134,11 +146,21 @@ def harvest_candidates(
         )
         page = context.new_page()
 
+        consecutive_fails = 0
+        MAX_CONSECUTIVE_FAILS = 4
+
         for idx, item in enumerate(pending, start=1):
             oid = item["oax_id"]
             url = item["url"]
             journal = item["journal"]
             dest = item["dest_path"]
+
+            # Ensure active page is alive
+            try:
+                if page.is_closed():
+                    page = context.new_page()
+            except Exception:
+                page = context.new_page()
 
             print(f"[{idx}/{len(pending)}] Harvesting: OAX {oid} ({journal[:30]})...")
             t0 = time.time()
@@ -163,7 +185,7 @@ def harvest_candidates(
                     pass
 
                 # 2. Fallback to HTML landing page buttons
-                if not saved:
+                if not saved and not page.is_closed():
                     # Dismiss cookie banners if present
                     try:
                         cookie_btn = page.locator(
@@ -194,13 +216,31 @@ def harvest_candidates(
 
                 if saved:
                     success_count += 1
+                    consecutive_fails = 0
                 else:
                     fail_count += 1
-                    print(f"  ✗ Could not trigger PDF download for OAX {oid}")
+                    consecutive_fails += 1
+                    page_title = page.title() if not page.is_closed() else ""
+                    print(f"  ✗ Could not trigger PDF download for OAX {oid} (Title: '{page_title}')")
+                    if "blocked" in page_title.lower() or "access denied" in page_title.lower() or consecutive_fails >= MAX_CONSECUTIVE_FAILS:
+                        print(f"\n[RATE-LIMIT ALERT] Detected block / {consecutive_fails} consecutive failures. Stopping batch to prevent IP lock.")
+                        break
 
             except Exception as e:
                 fail_count += 1
+                consecutive_fails += 1
                 print(f"  ✗ Error on OAX {oid}: {type(e).__name__} ({e})")
+                if consecutive_fails >= MAX_CONSECUTIVE_FAILS:
+                    print(f"\n[RATE-LIMIT ALERT] {consecutive_fails} consecutive errors. Stopping batch.")
+                    break
+
+            # Close auxiliary popup pages if any opened
+            for p_extra in context.pages:
+                if p_extra != page and not p_extra.is_closed():
+                    try:
+                        p_extra.close()
+                    except Exception:
+                        pass
 
             time.sleep(delay)
 
@@ -212,15 +252,19 @@ def harvest_candidates(
 
 def main():
     parser = argparse.ArgumentParser(description="Automated Playwright Gold OA PDF Harvester")
-    parser.add_argument("--limit", type=int, default=50, help="Number of papers to attempt (default: 50)")
-    parser.add_argument("--delay", type=float, default=2.0, help="Delay between paper requests in seconds (default: 2.0)")
+    parser.add_argument("-p", "--publisher", type=str, default=None, help="Filter by publisher/journal name or URL pattern (e.g. 'BMJ Open', 'PNAS', 'mdpi')")
+    parser.add_argument("--limit", type=int, default=50, help="Number of papers to attempt (default: 50, 0 for all)")
+    parser.add_argument("--all", action="store_true", help="Harvest all pending candidates for the specified filter")
+    parser.add_argument("--delay", type=float, default=1.5, help="Delay between paper requests in seconds (default: 1.5)")
     parser.add_argument("--headless", action="store_true", default=False, help="Run headless Chromium (default: False for headed)")
     parser.add_argument("--timeout", type=int, default=15000, help="Page navigation timeout in ms (default: 15000)")
     args = parser.parse_args()
 
-    candidates = fetch_gold_oa_candidates(limit=args.limit)
+    limit = None if args.all or args.limit == 0 else args.limit
+    candidates = fetch_gold_oa_candidates(limit=limit, publisher=args.publisher)
+    pub_desc = f" for '{args.publisher}'" if args.publisher else ""
+    print(f"Found {len(candidates)} pending candidates{pub_desc}.")
     harvest_candidates(candidates, headless=args.headless, delay=args.delay, timeout=args.timeout)
-
 
 if __name__ == "__main__":
     main()

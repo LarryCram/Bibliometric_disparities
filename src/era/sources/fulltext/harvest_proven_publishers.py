@@ -22,13 +22,13 @@ from era.sources.fulltext.playwright_harvester import (
 )
 
 PROVEN_PUBLISHERS = [
-    ("BMJ Open", "BMJ Open"),
-    ("PNAS", "Proceedings of the National Academy of Sciences"),
-    ("JBC", "Journal of Biological Chemistry"),
     ("MDPI", "mdpi"),
+    ("JBC", "Journal of Biological Chemistry"),
+    ("Paramedicine (ECU)", "ro.ecu.edu.au"),
     ("Royal Society B", "Proceedings of the Royal Society B"),
     ("Journal of Neuroscience", "Journal of Neuroscience"),
-    ("Paramedicine (ECU)", "ro.ecu.edu.au"),
+    ("PNAS", "Proceedings of the National Academy of Sciences"),
+    ("BMJ Open", "BMJ Open"),
 ]
 
 
