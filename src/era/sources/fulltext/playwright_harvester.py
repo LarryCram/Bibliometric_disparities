@@ -137,13 +137,16 @@ def harvest_candidates(
     print(f"Launching Playwright Chrome (headless={headless}) for {len(pending)} pending items...")
 
     with sync_playwright() as p:
-        context = p.chromium.launch_persistent_context(
-            user_data_dir=str(profile_dir),
-            channel="chrome",
-            headless=headless,
-            accept_downloads=True,
-            args=["--disable-blink-features=AutomationControlled"],
-        )
+        def launch_ctx():
+            return p.chromium.launch_persistent_context(
+                user_data_dir=str(profile_dir),
+                channel="chrome",
+                headless=headless,
+                accept_downloads=True,
+                args=["--disable-blink-features=AutomationControlled"],
+            )
+
+        context = launch_ctx()
         page = context.new_page()
 
         consecutive_fails = 0
@@ -155,11 +158,28 @@ def harvest_candidates(
             journal = item["journal"]
             dest = item["dest_path"]
 
-            # Ensure active page is alive
+            # Periodically recycle context every 250 papers to prevent Chrome memory accumulation
+            if idx > 1 and idx % 250 == 0:
+                print(f"Recycling Chrome browser context after {idx} items...")
+                try:
+                    context.close()
+                except Exception:
+                    pass
+                time.sleep(1.0)
+                context = launch_ctx()
+                page = context.new_page()
+
+            # Ensure active page and context are alive
             try:
                 if page.is_closed():
                     page = context.new_page()
             except Exception:
+                try:
+                    context.close()
+                except Exception:
+                    pass
+                time.sleep(1.0)
+                context = launch_ctx()
                 page = context.new_page()
 
             print(f"[{idx}/{len(pending)}] Harvesting: OAX {oid} ({journal[:30]})...")
