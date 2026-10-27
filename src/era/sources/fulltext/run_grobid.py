@@ -22,11 +22,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import PDF_DIR, TEI_DIR
+from era.config import PDF_DIR, TEI_DIR
 
 GROBID_URL = "http://localhost:8070/api/processFulltextDocument"
-CONCURRENCY = 8
+CONCURRENCY = 10
 
 
 def process_one(session, pdf_path):
@@ -50,22 +49,34 @@ def process_one(session, pdf_path):
 
 def main():
     TEI_DIR.mkdir(parents=True, exist_ok=True)
-    pdfs = sorted(PDF_DIR.glob("*.pdf"))
-    print(f"Processing {len(pdfs)} PDFs through GROBID with {CONCURRENCY} workers...")
+    all_pdfs = sorted(PDF_DIR.glob("*.pdf"))
+    unprocessed = [
+        p for p in all_pdfs
+        if not (TEI_DIR / f"{p.stem}.tei.xml").exists() or (TEI_DIR / f"{p.stem}.tei.xml").stat().st_size == 0
+    ]
+    print(f"Total PDFs in repository: {len(all_pdfs):,}")
+    print(f"Already processed to TEI: {len(all_pdfs) - len(unprocessed):,}")
+    print(f"Unprocessed PDFs to run: {len(unprocessed):,} (using {CONCURRENCY} workers)...")
+
+    if not unprocessed:
+        print("All PDFs are already converted to TEI XML!")
+        return
 
     results = []
     t_start = time.time()
     with requests.Session() as session, ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
-        futures = {pool.submit(process_one, session, p): p for p in pdfs}
+        futures = {pool.submit(process_one, session, p): p for p in unprocessed}
         n_done = 0
         for fut in as_completed(futures):
             result = fut.result()
             results.append(result)
             n_done += 1
-            if n_done % 200 == 0:
+            if n_done % 50 == 0 or n_done == len(unprocessed):
                 elapsed = time.time() - t_start
-                print(f"  {n_done}/{len(pdfs)} done ({elapsed:.0f}s elapsed, "
-                      f"{n_done / elapsed:.2f} papers/sec)")
+                rate = n_done / elapsed if elapsed > 0 else 0
+                remaining = (len(unprocessed) - n_done) / rate if rate > 0 else 0
+                print(f"  {n_done}/{len(unprocessed)} done ({elapsed:.0f}s elapsed, "
+                      f"{rate:.2f} papers/sec, ~{remaining:.0f}s remaining)")
 
     elapsed = time.time() - t_start
     ok = [r for r in results if r[1] == "ok"]

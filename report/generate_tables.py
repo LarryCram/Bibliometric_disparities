@@ -1260,17 +1260,12 @@ def generate_table11(con):
 
     rows = []
     with open(table11_csv, newline="") as f:
-        reader = csv.DictReader(f)
+        reader = csv.reader(f)
+        _header = next(reader)
         for r in reader:
-            cat = r["category"]
-            if cat not in labels:
+            if not r:
                 continue
-            lbl = labels[cat]
-            rc = f"{int(r['ref_count']):,}" if r["ref_count"] else "—"
-            rp = f"{float(r['ref_pct']):.2f}%" if r["ref_pct"] else "—"
-            pc = f"{int(r['paper_count']):,}" if r["paper_count"] else "—"
-            pp = f"{float(r['paper_pct']):.2f}%" if r["paper_pct"] else "—"
-            rows.append([lbl, rc, rp, pc, pp])
+            rows.append(r)
 
     title = "Reference Resolution Disparity Taxonomy Across ERA 2018 Corpus"
     notes = (

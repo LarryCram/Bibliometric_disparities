@@ -13,10 +13,10 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 2B: Scopus Linkage & Title Harvest** | Persistent title query harvest (50,780 hits) + pybliometrics cache | 342,478 canonical works (75.1%); 92.6% of journal articles | **100% Complete** |
 | **Stage 2C: Trove Linkage** | 2-tier ISBN and title query matching across National Library catalog | 36,614 works; 87.8% of books, 61.0% of book chapters, 50–74% NTROs | **100% Complete** |
 | **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
-| **Stage 4: Paper Artifacts** | 10 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
-| **Stage 5: References & Authors** | GROBID TEI internal citation network (131k citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet`; Tables 9 & 10 | **100% Complete** |
+| **Stage 4: Paper Artifacts** | 11 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
+| **Stage 5: References & Authors** | GROBID TEI internal citation network (134,195 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (71,436 papers, 3.42M references, 5.38M mentions); Tables 9 & 10 | **100% Complete** |
 | **Stage 6: Assessment vs Index Disparities** | Systematic comparison of ERA submissions vs OpenAlex HEP corpus; temporal mobility gradient | `manuscript/disparities_assessment_vs_index.tex`, compiled 7-page PDF | **100% Complete** |
-| **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.96% refs, 12.2% papers); 4 metadata-only backward error tests | Evaluated 1.6M refs; pybliometrics live caching verified (9,998 quota) | **100% Complete** |
+| **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.97% refs, 25.3% papers); 4 metadata-only backward error tests | Evaluated 15.9M refs across full corpus; pybliometrics live caching verified (9,998 quota) | **100% Complete** |
 | **Validation & Test Suite** | Full test suite across normalization, Olensky rules, and matching | 205 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
@@ -78,7 +78,7 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
    - Unit test suite expanded to 195 tests (100% passing). Exported CSV and markdown summaries to `report/output/`.
 
 14. **Paper Artifact Generation (Stage 4 Completed)**:
-   - Expanded and updated `report/generate_tables.py` generating 8 APA-style publication tables in standalone `.docx`, `.csv`, `.md`, and assembled into `all_paper_tables.docx`:
+   - Expanded and updated `report/generate_tables.py` generating 11 APA-style publication tables in standalone `.docx`, `.csv`, `.md`, and assembled into `all_paper_tables.docx`:
      - Table 1: Submission counts, reconciled canonical works, and duplication gradients (reconciled across all 567,647 submissions).
      - Table 2: Cross-institution reporting disparities across co-submitted works.
      - Table 3: Olensky IAC taxonomy incidence in ERA.
@@ -87,6 +87,9 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
      - Table 6: Cross-index disjoint intersections (UpSet overlap matrix).
      - Table 7: Comparative external Olensky inaccuracy profiles across OpenAlex, Scopus, and Trove.
      - Table 8: Dual-perspective coupled lifecycle drift vs isolated reporting errors.
+     - Table 9: Bibliographic disparity rates by in-text citation frequency (GROBID full-text parse).
+     - Table 10: Author and institutional affiliation disparities across ERA outputs.
+     - Table 11: Reference resolution disparity taxonomy across full ERA 2018 corpus (15.9M references).
    - Expanded `report/generate_figures.py` generating 7 high-resolution publication figures (both 300-DPI `.png` and vector `.pdf`) in `report/output/figures/`:
      - Figure 1: Output type volume and duplicate rate gradient.
      - Figure 2: HEP-HEP reporting disparities profile.
@@ -95,13 +98,13 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
      - Figure 5: Multi-index coverage rates by ERA research output type (grouped bar chart).
      - Figure 6: Cross-index intersection sets and composition breakdown (UpSet horizontal bar chart).
      - Figure 7: Comparative Olensky IAC type distribution across external indices (stacked bar chart).
-   - Test suite expanded to 198 unit tests (100% passing).
+   - Test suite expanded to 205 unit tests (100% passing).
 15. **GROBID TEI Reference Disparities, Citation Importance, and Author/Institution Analysis (Stage 5 Completed)**:
-   - High-throughput parallel extraction (`extract_grobid.py`) across 69,791 TEI XML outputs parsed from full-text PDFs in `/home/lc/k/era_oa_pdfs_tei`:
-     - `grobid_papers.parquet`: 69,791 papers with header author strings and citation tallies.
-     - `grobid_references.parquet`: 3,351,806 bibliography entries kept strictly separated from canonical ERA records.
-     - `grobid_mentions.parquet`: 5,266,754 in-text citation mentions with calling context and section headers (`<head>`).
-   - Mapped 131,395 internal citations between Australian ERA outputs (41,500 exact DOI citations + 89,895 exact unique title matches with year tolerance) stored in `data/era_grobid_reference_disparities.parquet`.
+   - High-throughput parallel extraction (`extract_grobid.py`) across 71,436 TEI XML outputs parsed from full-text PDFs in `/home/lc/k/era_oa_pdfs_tei` (+1,645 new papers):
+     - `grobid_papers.parquet`: 71,436 papers with header author strings and citation tallies.
+     - `grobid_references.parquet`: 3,420,060 bibliography entries kept strictly separated from canonical ERA records (+68,254).
+     - `grobid_mentions.parquet`: 5,378,654 in-text citation mentions with calling context and section headers (`<head>`) (+111,900).
+   - Mapped 134,195 internal citations between Australian ERA outputs (+2,800 internal citations) stored in `data/era_grobid_reference_disparities.parquet` (42,398 exact DOI citations + 91,797 exact unique title matches with year tolerance).
    - **Olensky Citation Importance Hypothesis Verified**:
      - Bibliographic inaccuracies follow a strict monotonic gradient with in-text citation frequency: Type 3 severe title discordance falls from 25.72% for uncited references and 18.82% for single passing citations down to 14.69% for foundational citations ($7+$ mentions).
      - Surface fidelity (casing/punctuation preservation) increases from 59.83% (uncited) to 71.30% ($7+$ mentions).
