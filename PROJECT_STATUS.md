@@ -13,11 +13,12 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 2B: Scopus Linkage & Title Harvest** | Persistent title query harvest (50,780 hits) + pybliometrics cache | 342,478 canonical works (75.1%); 92.6% of journal articles | **100% Complete** |
 | **Stage 2C: Trove Linkage** | 2-tier ISBN and title query matching across National Library catalog | 36,614 works; 87.8% of books, 61.0% of book chapters, 50–74% NTROs | **100% Complete** |
 | **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
-| **Stage 4: Paper Artifacts** | 11 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
+| **Stage 4: Paper Artifacts** | 12 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
 | **Stage 5: References & Authors** | GROBID TEI internal citation network (134,195 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (71,436 papers, 3.42M references, 5.38M mentions); Tables 9 & 10 | **100% Complete** |
 | **Stage 6: Assessment vs Index Disparities** | Systematic comparison of ERA submissions vs OpenAlex HEP corpus; temporal mobility gradient | `manuscript/disparities_assessment_vs_index.tex`, compiled 7-page PDF | **100% Complete** |
-| **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.97% refs, 25.3% papers); 4 metadata-only backward error tests | Evaluated 15.9M refs across full corpus; pybliometrics live caching verified (9,998 quota) | **100% Complete** |
-| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, and matching | 205 unit tests passing | **100% Passing** |
+| **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.97% refs, 25.3% papers); 4 metadata-only backward error tests | Evaluated 15.9M refs across full corpus; pybliometrics live caching verified (9,998 quota); Table 11 | **100% Complete** |
+| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (134k citations); reading rate $\hat{\rho} = 66.7\%$, copying rate $33.4\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 49.3% inter-HEP diffusion | **100% Complete** |
+| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 207 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
 
@@ -136,10 +137,26 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
      - Built [`src/era/analysis/backward_reference_disparities.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/analysis/backward_reference_disparities.py) implementing all 4 detection engines (MAI, CCD, OHO, TGO).
      - Generated Publication **Table 11: Reference Resolution Disparity Taxonomy Across ERA 2018 Corpus** in standalone `.docx`, `.csv`, `.md`, and assembled into master [`report/output/tables/all_paper_tables.docx`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/all_paper_tables.docx).
      - Expanded unit test suite to 205 tests (100% passing).
+18. **Simkin & Roychowdhury Citation Mutation-Copying Dynamics (Stage 8 Completed)**:
+   - Applied Simkin & Roychowdhury's (2003, 2005) stochastic citation copying model to identical typographical and severe error variants across the 134,195 matched internal citations between Australian ERA research outputs parsed from 71,436 full-text PDFs ([`src/era/analysis/simkin_roychowdhury_grobid.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/analysis/simkin_roychowdhury_grobid.py)).
+   - **Empirical Reading vs. Copying Rates**:
+     - **Type 2 Textual Variations (Typos/Indels)**: 7,780 total variants, 6,714 singletons ($k = 1$), 1,066 replicated variants ($k \ge 2$), spanning 10,073 total citations.
+     - S&R Reading Rate: **$\hat{\rho} = 66.65\%$** (reading the primary paper).
+     - S&R Copying Rate: **$1 - \hat{\rho} = 33.35\%$** (1 in 3 citations carrying a textual typo was copied verbatim from an existing bibliography without reading the primary source).
+     - **Combined Flawed Citations**: 10,182 total variants, 9,071 singletons, 1,111 replicated variants across 12,540 citations ($\hat{\rho} = 72.34\%$, copying rate $27.66\%$).
+   - **Cross-Institutional Diffusion**:
+     - 50.68% (563 lineages) replicated within the same Australian HEP (lab templates / co-authors).
+     - **49.32% (548 lineages) diffused across 2 to 13 distinct Australian universities**, demonstrating that citation copying permeates the broader national scholarly network.
+   - **Temporal Persistence**:
+     - 70.48% (783 lineages) persisted across subsequent publication years (mean span: 1.32 years, maximum 5 years).
+   - **In-Text Placement**:
+     - Copied variants are disproportionately placed in the **Introduction** (35.16% vs 29.26% for singletons) and less frequent in the **Discussion** (15.08% vs 19.93%), directly validating Olensky's reading effort hypothesis.
+   - Built [`tests/test_simkin_roychowdhury.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/tests/test_simkin_roychowdhury.py) expanding test suite to 207 tests (100% passing).
+   - Generated Publication **Table 12: Simkin & Roychowdhury Citation Mutation-Copying Dynamics** in standalone `.docx`, `.csv`, `.md`, and assembled into master [`report/output/tables/all_paper_tables.docx`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/all_paper_tables.docx).
 
 ## Current State & Next Steps
-- All analytical stages complete and verified. 205 unit tests passing.
-- Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 11 publication tables in `report/output/tables/all_paper_tables.docx`.
+- All analytical stages complete and verified. 207 unit tests passing.
+- Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 12 publication tables in `report/output/tables/all_paper_tables.docx`.
 - Next step: Run large-scale cross-index reference resolution comparison between OpenAlex and Scopus across sample of ERA papers using pybliometrics cache.
 
 

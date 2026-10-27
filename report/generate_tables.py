@@ -1277,6 +1277,116 @@ def generate_table11(con):
     return headers, rows, aligns, widths, title, notes
 
 
+def generate_table12(con):
+    """Table 12: Simkin & Roychowdhury Citation Mutation-Copying Dynamics."""
+    table12_csv = OUTPUT_DIR / "table12_simkin_roychowdhury_propagation.csv"
+    if not table12_csv.exists():
+        from era.analysis.simkin_roychowdhury_grobid import compute_simkin_roychowdhury_metrics, export_table12
+        res = compute_simkin_roychowdhury_metrics(con=con)
+        export_table12(res, OUTPUT_DIR)
+
+    headers = [
+        "Inaccuracy / Diffusion Dimension",
+        "Total Variants (M)",
+        "Singletons (k=1)",
+        "Replicated (k>=2)",
+        "Total Citations (K)",
+        "Replicated Cites",
+        "Reading Rate (rho)",
+        "Copying Rate (1-rho)",
+    ]
+    aligns = [
+        WD_ALIGN_PARAGRAPH.LEFT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+        WD_ALIGN_PARAGRAPH.RIGHT,
+    ]
+    widths = [2.6, 1.1, 1.1, 1.1, 1.1, 1.1, 1.2, 1.2]
+
+    from era.analysis.simkin_roychowdhury_grobid import compute_simkin_roychowdhury_metrics
+    res = compute_simkin_roychowdhury_metrics(con=con)
+    t2 = res["textual_type2"]
+    t3 = res["severe_type3"]
+    comb = res["combined_errors"]
+    diff = res["diffusion_combined"]
+
+    rows = [
+        [
+            "Type 2: Textual (Typos/Indels)",
+            f"{t2['total_variants']:,}",
+            f"{t2['singletons_k1']:,}",
+            f"{t2['replicated_variants_k_ge_2']:,}",
+            f"{t2['total_citations']:,}",
+            f"{t2['replicated_citations_k_ge_2']:,}",
+            f"{t2['rho_reading_estimate']*100:.2f}%",
+            f"{t2['copying_rate_estimate']*100:.2f}%",
+        ],
+        [
+            "Type 3: Severe Inaccuracies",
+            f"{t3['total_variants']:,}",
+            f"{t3['singletons_k1']:,}",
+            f"{t3['replicated_variants_k_ge_2']:,}",
+            f"{t3['total_citations']:,}",
+            f"{t3['replicated_citations_k_ge_2']:,}",
+            f"{t3['rho_reading_estimate']*100:.2f}%",
+            f"{t3['copying_rate_estimate']*100:.2f}%",
+        ],
+        [
+            "Combined Flawed Citations",
+            f"{comb['total_variants']:,}",
+            f"{comb['singletons_k1']:,}",
+            f"{comb['replicated_variants_k_ge_2']:,}",
+            f"{comb['total_citations']:,}",
+            f"{comb['replicated_citations_k_ge_2']:,}",
+            f"{comb['rho_reading_estimate']*100:.2f}%",
+            f"{comb['copying_rate_estimate']*100:.2f}%",
+        ],
+        [
+            "Intra-HEP Replication (Same Institution)",
+            "—",
+            "—",
+            f"{diff['intra_hep_only']:,} ({diff['intra_hep_pct']:.1f}%)",
+            "—",
+            "—",
+            "—",
+            "—",
+        ],
+        [
+            f"Inter-HEP Diffusion (2 to {diff['max_heps']} Universities)",
+            "—",
+            "—",
+            f"{diff['inter_hep_diffusion']:,} ({diff['inter_hep_pct']:.1f}%)",
+            "—",
+            "—",
+            "—",
+            "—",
+        ],
+        [
+            f"Multi-Year Propagation (1 to {diff['max_span_years']}y Persistence)",
+            "—",
+            "—",
+            f"{diff['span_1y'] + diff['span_2y'] + diff['span_3y_plus']:,} ({(diff['span_1y'] + diff['span_2y'] + diff['span_3y_plus'])/diff['total_multi_variants']*100:.1f}%)",
+            "—",
+            "—",
+            "—",
+            "—",
+        ],
+    ]
+
+    title = "Simkin & Roychowdhury Citation Mutation-Copying Dynamics Across GROBID Full-Text"
+    notes = (
+        "Evaluated across 134,195 matched internal citations between Australian ERA research outputs parsed from 71,436 full-text PDFs. "
+        "Applying Simkin & Roychowdhury's (2003, 2005) stochastic citation copying model, where singleton variants (k = 1) "
+        "estimate independent reading, and replicated variants (k >= 2) quantify citation copying without reading the primary source. "
+        "Inter-HEP diffusion demonstrates error propagation across distinct Australian universities."
+    )
+    return headers, rows, aligns, widths, title, notes
+
+
 def main():
     con = duckdb.connect()
     print("Generating complete publication tables suite (Stage 4)...")
@@ -1293,6 +1403,7 @@ def main():
         ("table9_reference_disparities_importance", 9, generate_table9),
         ("table10_author_institution_disparities", 10, generate_table10),
         ("table11_reference_resolution_disparities", 11, generate_table11),
+        ("table12_simkin_roychowdhury_propagation", 12, generate_table12),
     ]
 
 
