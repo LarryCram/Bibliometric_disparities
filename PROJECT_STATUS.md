@@ -163,23 +163,32 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 20. **Automated Playwright Publisher Harvester & Rate-Limit Engine**:
     - Engineered [`src/era/sources/fulltext/playwright_harvester.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/playwright_harvester.py) and sequential publisher runner [`src/era/sources/fulltext/harvest_proven_publishers.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/harvest_proven_publishers.py) (test suite 100% passing).
     - Configured persistent Google Chrome profile (`~/.config/era_chrome_profile`) with `plugins.always_open_pdf_externally: True`, bypassing Chrome's internal PDF viewer plugin and eliminating manual click/save workflows.
-    - Added automated rate-limit detection (`Blocked`, `Access Denied`) and a 4-consecutive-failure circuit breaker to safeguard against IP throttling.
+    - Added automated rate-limit detection (`Blocked`, `Access Denied`, `Validate User`, `Just a moment...`) and a 4-consecutive-failure circuit breaker to safeguard against IP throttling.
+    - Added strict PDF validation (`is_valid_pdf_file`) checking magic bytes (`%PDF-`), minimum file sizes, and actively filtering out platform navigation brochures/user guides.
     - Executed publisher-by-publisher sequential harvesting with flawless yields:
       - **MDPI** (*Sensors, Nutrients, Energies, IJMS, Polymers*): **1,488 / 1,488 succeeded (100.0%)**
+      - **Cell Press** (*Cell, Neuron, Immunity, Cancer Cell, Current Biology, Structure*): **902 / 910 succeeded (99.1%)**
       - **ASM (American Society for Microbiology)**: **840 / 899 succeeded (93.4%)**
+      - **ECU Digital Commons** (*Paramedicine & Teacher Education*): **687 / 691 succeeded (99.4%)**
       - **BMJ Open**: **508 / 508 succeeded (100.0%)**
       - **Journal of Biological Chemistry (JBC)**: **335 / 335 succeeded (100.0%)**
       - **AISeL (Association for Information Systems)**: **284 / 286 succeeded (99.3%)**
       - **Journal of Neuroscience**: **265 / 274 succeeded (96.7%)**
-      - **PNAS**: **83 succeeded** before hitting Atypon daily volume threshold.
-      - **Paramedicine (ECU)**: **29 direct downloads**.
-    - Enabled automatic browser context recycling and crash recovery ensuring non-stop background harvesting.
+      - **RSC (Royal Society of Chemistry)**: **230 succeeded**
+      - **PNAS (Proceedings of the National Academy of Sciences)**: **183 succeeded** across 2 rate-limited sessions
+      - **ARVO (Association for Research in Vision and Ophthalmology)**: **157 succeeded (91.3%)**
+      - **De Gruyter**: **136 / 139 succeeded (97.8%)**
+      - **Journal of Dairy Science**: **122 / 122 succeeded (100.0%)**
+      - **PeerJ**: **42 / 42 succeeded (100.0%)**
+      - **Paramedicine + Oncotarget + Miscellaneous**: **87 direct downloads**
+    - Enabled automatic browser context recycling (every 250 papers) and crash recovery ensuring non-stop background harvesting.
 
 ## Current State & Next Steps
 - All analytical stages complete and verified. 212 unit tests passing (100%).
-- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **78,460 PDFs** (**+3,888 net new full-text PDFs** acquired today).
+- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **80,768 PDFs** (**+6,196 net new full-text PDFs** acquired autonomously today!).
 - Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 12 publication tables in `report/output/tables/all_paper_tables.docx`.
-- Automated Playwright sequential harvesting operational in background.
+- Next Step: Run batch GROBID TEI extraction on newly acquired PDFs (expanding TEIs from 74,154 towards 80,700+) and re-extract references for Tables 9, 10, and 12.
+
 
 
 

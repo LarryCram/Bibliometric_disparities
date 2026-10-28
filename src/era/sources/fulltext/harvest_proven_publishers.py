@@ -22,20 +22,22 @@ from era.sources.fulltext.playwright_harvester import (
 )
 
 PROVEN_PUBLISHERS = [
+    ("PeerJ", "peerj.com"),
+    ("De Gruyter", "degruyter.com"),
+    ("ARVO (All)", "arvojournals.org"),
+    ("Cell Press", "cell.com"),
+    ("Journal of Dairy Science", "journalofdairyscience.org"),
+    ("IUCr Crystallography", "journals.iucr.org"),
+    ("ECU (Paramedicine & AJTE)", "ro.ecu.edu.au"),
+    ("ARVO (IOVS)", "iovs.arvojournals.org"),
+    ("PNAS", "pnas.org"),
     ("RSC (Royal Society of Chemistry)", "pubs.rsc.org"),
-    ("AIP (American Institute of Physics)", "pubs.aip.org"),
-    ("AJTE (Australian Teacher Education)", "ro.ecu.edu.au/ajte"),
     ("AISeL (Information Systems)", "aisel.aisnet.org"),
-    ("Oncotarget", "oncotarget"),
     ("ASM (Microbiology)", ".asm.org"),
-    ("IOP (Institute of Physics)", "iopscience.iop.org"),
     ("MDPI", "mdpi"),
     ("JBC", "Journal of Biological Chemistry"),
     ("Journal of Neuroscience", "Journal of Neuroscience"),
     ("BMJ Open", "BMJ Open"),
-    ("Paramedicine (ECU)", "ro.ecu.edu.au"),
-    ("Royal Society B", "Proceedings of the Royal Society B"),
-    ("PNAS", "Proceedings of the National Academy of Sciences"),
 ]
 
 

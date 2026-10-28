@@ -105,6 +105,25 @@ def setup_chrome_profile(profile_dir: Path) -> Path:
     return profile_dir
 
 
+def is_valid_pdf_file(filepath: Path) -> bool:
+    """Validate that downloaded file is a genuine PDF and not a brochure or HTML error."""
+    if not filepath.exists() or filepath.stat().st_size < 1000:
+        return False
+    try:
+        with open(filepath, "rb") as f:
+            header = f.read(1024)
+            if not header.startswith(b"%PDF-"):
+                return False
+            # Check for known platform guide sizes or title strings
+            if filepath.stat().st_size == 5084557:  # AIP platform user guide
+                return False
+            if b"Content Platform User Guide" in header or b"User Guide" in header:
+                return False
+        return True
+    except Exception:
+        return False
+
+
 def harvest_candidates(
     candidates: list[dict[str, Any]],
     headless: bool = False,
@@ -198,9 +217,12 @@ def harvest_candidates(
                                 raise
                     dl = dl_info.value
                     dl.save_as(str(dest))
-                    sz = dest.stat().st_size
-                    print(f"  ✓ Direct Download: {sz/1024:.1f} KB in {time.time()-t0:.1f}s")
-                    saved = True
+                    if is_valid_pdf_file(dest):
+                        sz = dest.stat().st_size
+                        print(f"  ✓ Direct Download: {sz/1024:.1f} KB in {time.time()-t0:.1f}s")
+                        saved = True
+                    else:
+                        dest.unlink(missing_ok=True)
                 except Exception:
                     pass
 
@@ -221,9 +243,12 @@ def harvest_candidates(
                                             raise
                                 dl_m = dl_meta.value
                                 dl_m.save_as(str(dest))
-                                sz = dest.stat().st_size
-                                print(f"  ✓ Meta URL Download: {sz/1024:.1f} KB in {time.time()-t0:.1f}s")
-                                saved = True
+                                if is_valid_pdf_file(dest):
+                                    sz = dest.stat().st_size
+                                    print(f"  ✓ Meta URL Download: {sz/1024:.1f} KB in {time.time()-t0:.1f}s")
+                                    saved = True
+                                else:
+                                    dest.unlink(missing_ok=True)
                     except Exception:
                         pass
 
@@ -244,7 +269,8 @@ def harvest_candidates(
                     # Look for PDF button / link
                     pdf_btn = page.locator(
                         "a#pdf, a[data-article-pdf='true'], a:has-text('Download PDF'), "
-                        "a.btn:has-text('Download'), a:has-text('PDF'), a[href*='.pdf']"
+                        "a:has-text('View PDF'), a:has-text('Full Text (PDF)'), "
+                        "a.article-pdf-download, a.al-link.pdf, a:has-text('HERE')"
                     ).first
 
                     if pdf_btn and pdf_btn.is_visible(timeout=2500):
@@ -253,9 +279,12 @@ def harvest_candidates(
                             pdf_btn.click(force=True, timeout=3000)
                         dl2 = dl_info2.value
                         dl2.save_as(str(dest))
-                        sz = dest.stat().st_size
-                        print(f"  ✓ Button Download: {sz/1024:.1f} KB in {time.time()-t0:.1f}s")
-                        saved = True
+                        if is_valid_pdf_file(dest):
+                            sz = dest.stat().st_size
+                            print(f"  ✓ Button Download: {sz/1024:.1f} KB in {time.time()-t0:.1f}s")
+                            saved = True
+                        else:
+                            dest.unlink(missing_ok=True)
 
                 if saved:
                     success_count += 1
