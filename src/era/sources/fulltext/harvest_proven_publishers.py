@@ -22,6 +22,9 @@ from era.sources.fulltext.playwright_harvester import (
 )
 
 PROVEN_PUBLISHERS = [
+    ("RSC (Royal Society of Chemistry)", "pubs.rsc.org"),
+    ("AIP (American Institute of Physics)", "pubs.aip.org"),
+    ("AJTE (Australian Teacher Education)", "ro.ecu.edu.au/ajte"),
     ("AISeL (Information Systems)", "aisel.aisnet.org"),
     ("Oncotarget", "oncotarget"),
     ("ASM (Microbiology)", ".asm.org"),
