@@ -166,16 +166,18 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
     - Added automated rate-limit detection (`Blocked`, `Access Denied`) and a 4-consecutive-failure circuit breaker to safeguard against IP throttling.
     - Executed publisher-by-publisher sequential harvesting with flawless yields:
       - **MDPI** (*Sensors, Nutrients, Energies, IJMS, Polymers*): **1,488 / 1,488 succeeded (100.0%)**
+      - **ASM (American Society for Microbiology)**: **840 / 899 succeeded (93.4%)**
       - **BMJ Open**: **508 / 508 succeeded (100.0%)**
       - **Journal of Biological Chemistry (JBC)**: **335 / 335 succeeded (100.0%)**
+      - **AISeL (Association for Information Systems)**: **284 / 286 succeeded (99.3%)**
       - **Journal of Neuroscience**: **265 / 274 succeeded (96.7%)**
       - **PNAS**: **83 succeeded** before hitting Atypon daily volume threshold.
       - **Paramedicine (ECU)**: **29 direct downloads**.
-    - Actively harvesting next proven queues: **ASM (American Society for Microbiology)** (899 papers) and **IOP (Institute of Physics)** (430 papers).
+    - Enabled automatic browser context recycling and crash recovery ensuring non-stop background harvesting.
 
 ## Current State & Next Steps
 - All analytical stages complete and verified. 212 unit tests passing (100%).
-- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **77,330+ PDFs** (**+2,758 net new full-text PDFs** acquired today).
+- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **78,460 PDFs** (**+3,888 net new full-text PDFs** acquired today).
 - Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 12 publication tables in `report/output/tables/all_paper_tables.docx`.
 - Automated Playwright sequential harvesting operational in background.
 
