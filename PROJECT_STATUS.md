@@ -14,11 +14,11 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 2C: Trove Linkage** | 2-tier ISBN and title query matching across National Library catalog | 36,614 works; 87.8% of books, 61.0% of book chapters, 50–74% NTROs | **100% Complete** |
 | **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
 | **Stage 4: Paper Artifacts** | 12 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
-| **Stage 5: References & Authors** | GROBID TEI internal citation network (134,195 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (71,436 papers, 3.42M references, 5.38M mentions); Tables 9 & 10 | **100% Complete** |
+| **Stage 5: References & Authors** | GROBID TEI internal citation network (159,841 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (84,741 papers, 4.05M references, 6.35M mentions); Tables 9 & 10 | **100% Complete** |
 | **Stage 6: Assessment vs Index Disparities** | Systematic comparison of ERA submissions vs OpenAlex HEP corpus; temporal mobility gradient | `manuscript/disparities_assessment_vs_index.tex`, compiled 7-page PDF | **100% Complete** |
 | **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.97% refs, 25.3% papers); 4 metadata-only backward error tests | Evaluated 15.9M refs across full corpus; pybliometrics live caching verified (9,998 quota); Table 11 | **100% Complete** |
-| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (134k citations); reading rate $\hat{\rho} = 66.7\%$, copying rate $33.4\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 49.3% inter-HEP diffusion | **100% Complete** |
-| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 207 unit tests passing | **100% Passing** |
+| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (159.8k citations); reading rate $\hat{\rho} = 66.7\%$, copying rate $33.4\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 49.3% inter-HEP diffusion | **100% Complete** |
+| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 214 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
 
@@ -198,8 +198,17 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
       - **World Journal of Gastroenterology (Baishideng/WJG)**: **28 succeeded**
       - **Bioscientifica, AMS, Biologists, OARSI, AJTMH, EarthDoc, Army War College, etc.**: **3,160 successful downloads** in a single autonomous session.
 
+22. **Full-Text TEI Extraction & Citation Network Expansion (Completed)**:
+    - Executed high-throughput GROBID 0.9.0 parallel extraction (`run_grobid.py`, 10 workers) across newly acquired PDFs: **10,587 new TEI XML files** successfully generated, bringing the full-text TEI corpus to **84,741 papers** in `/home/lc/k/era_oa_pdfs_tei`.
+    - Extracted verbatim reference lists and in-text citation mentions via `extract_grobid.py` in 30.7s (2,763 files/s):
+      - **84,741 papers**
+      - **4,050,160 bibliography references** (surpassing 4.05 million)
+      - **6,350,007 in-text citation mentions** with section context (surpassing 6.35 million)
+    - Re-linked GROBID references against canonical ERA outputs (`reference_disparities.py`): internal citations expanded to **159,841 records** (+25,646 new linked citation pairs).
+    - Re-computed Simkin & Roychowdhury citation copying dynamics (`simkin_roychowdhury_grobid.py`) and regenerated all 12 publication APA tables and master compilation `report/output/tables/all_paper_tables.docx`.
+
 ## Current State & Next Steps
 - All analytical stages complete and verified. 214 unit tests passing (100%).
 - Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **85,096 PDFs** (**+10,524 net new full-text PDFs** acquired autonomously today!).
+- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **84,741 papers**, **4.05M references**, **6.35M in-text mentions**, **159,841 internal citations**.
 - Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 12 publication tables in `report/output/tables/all_paper_tables.docx`.
-- Next Step: Run batch GROBID TEI extraction on newly acquired PDFs (expanding TEIs from 74,154 towards 85,000+) and re-extract references for Tables 9, 10, and 12.
