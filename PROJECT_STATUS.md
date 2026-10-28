@@ -183,12 +183,23 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
       - **Paramedicine + Oncotarget + Miscellaneous**: **87 direct downloads**
     - Enabled automatic browser context recycling (every 250 papers) and crash recovery ensuring non-stop background harvesting.
 
+21. **Alternative Repositories & Non-Gated Small Publishers Sweep (Completed)**:
+    - Built [`src/era/sources/fulltext/harvest_repositories_and_tiny_publishers.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/harvest_repositories_and_tiny_publishers.py) targeting alternative Green OA repositories for gated journal articles and 654 non-gated small publishers with automated 2-strike domain circuit breakers.
+    - Isolated institutional repositories by institution name, recovering significant pools:
+      - **UNSWorks (University of New South Wales)**: **92 / 92 (100.0%)** direct downloads
+      - **Charles Sturt University (CRO)**: **19 / 22 succeeded**
+      - **Minerva Access (University of Melbourne)**: **16 succeeded**
+      - **Adelaide Research & Scholarship**: **8 succeeded**
+      - **Hull Worktribe**: **5 / 5 (100.0%)**
+      - **Deep Blue (University of Michigan)**: **6 succeeded**
+      - **Manchester, Chalmers, UTIA, Edinburgh, Dundee**: **18 direct repository downloads**
+    - Swept all 654 small/independent publishers with high yields on open societies:
+      - **BMJ Journals**: **88 / 90 (97.8%)**
+      - **World Journal of Gastroenterology (Baishideng/WJG)**: **28 succeeded**
+      - **Bioscientifica, AMS, Biologists, OARSI, AJTMH, EarthDoc, Army War College, etc.**: **3,160 successful downloads** in a single autonomous session.
+
 ## Current State & Next Steps
-- All analytical stages complete and verified. 212 unit tests passing (100%).
-- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **80,768 PDFs** (**+6,196 net new full-text PDFs** acquired autonomously today!).
+- All analytical stages complete and verified. 214 unit tests passing (100%).
+- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **85,096 PDFs** (**+10,524 net new full-text PDFs** acquired autonomously today!).
 - Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 12 publication tables in `report/output/tables/all_paper_tables.docx`.
-- Next Step: Run batch GROBID TEI extraction on newly acquired PDFs (expanding TEIs from 74,154 towards 80,700+) and re-extract references for Tables 9, 10, and 12.
-
-
-
-
+- Next Step: Run batch GROBID TEI extraction on newly acquired PDFs (expanding TEIs from 74,154 towards 85,000+) and re-extract references for Tables 9, 10, and 12.
