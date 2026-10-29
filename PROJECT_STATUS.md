@@ -14,11 +14,12 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 2C: Trove Linkage** | 2-tier ISBN and title query matching across National Library catalog | 36,614 works; 87.8% of books, 61.0% of book chapters, 50–74% NTROs | **100% Complete** |
 | **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
 | **Stage 4: Paper Artifacts** | 12 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
-| **Stage 5: References & Authors** | GROBID TEI internal citation network (161,837 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (86,433 papers, 4.11M references, 6.46M mentions); Tables 9 & 10 | **100% Complete** |
+| **Stage 5: References & Authors** | GROBID TEI internal citation network (172,745 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (91,517 papers, 4.38M references, 6.86M mentions); Tables 9 & 10 | **100% Complete** |
 | **Stage 6: Assessment vs Index Disparities** | Systematic comparison of ERA submissions vs OpenAlex HEP corpus; temporal mobility gradient | `manuscript/disparities_assessment_vs_index.tex`, compiled 7-page PDF | **100% Complete** |
 | **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.97% refs, 25.3% papers); 4 metadata-only backward error tests | Evaluated 15.9M refs across full corpus; pybliometrics live caching verified (9,998 quota); Table 11 | **100% Complete** |
-| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (161.8k citations); reading rate $\hat{\rho} = 66.7\%$, copying rate $33.4\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 49.3% inter-HEP diffusion | **100% Complete** |
-| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 214 unit tests passing | **100% Passing** |
+| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (172.7k citations); reading rate $\hat{\rho} = 71.6\%$, copying rate $28.4\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 50.1% inter-HEP diffusion | **100% Complete** |
+| **Stage 9: Scientometrics Manuscript** | 10-page research paper in Springer Nature December 2024 format (`sn-mathphys-num`) | `manuscript/main.pdf` compiled, zero undefined citations, Zotero `MyLibrary.bib` | **100% Complete** |
+| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 217 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
 
@@ -223,14 +224,24 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
     - Built [`src/era/sources/fulltext/harvest_pmc_aws.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/harvest_pmc_aws.py) connecting directly to the PMC Open Access Subset on AWS Open Data (`s3://pmc-oa-opendata/`).
     - Successfully scanned all 18,832 pending PMC works across 12 concurrent worker threads at strictly $0.00 cost:
       - **5,581 net new full-text PDFs** downloaded (9,329.55 MB / 9.33 GB total volume, 29.6% hit rate against the open access redistribution subset).
-      - Total full-text PDFs on disk expanded to **92,498 PDFs** in `/home/lc/k/era_oa_pdfs/` (**+17,926 net new PDFs** acquired autonomously).
     - Upgraded research manuscript to the official Springer Nature **December 2024 (v3.1) template package** ([`manuscript/main.tex`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.tex)) with modular section files in [`manuscript/sections/`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/sections/):
       - `introduction.tex`, `methods.tex`, `results.tex`, `discussion.tex`, `conclusion.tex`.
     - Applied distilled LLM drafting directives: propositional progression, zero rhetorical signposting, parametric boundary conditions, deductive syntax, and theoretical framing in Olensky's (2015) bibliometric data accuracy taxonomy (`olenskyDataAccuracyBibliometric2015`).
     - Successfully compiled into publication-ready 10-page PDF ([`manuscript/main.pdf`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.pdf)) with zero errors and zero undefined references using Zotero's `MyLibrary.bib`.
 
+25. **GROBID 91.5k Ingestion, Full Figshare Sweep & Expanded Citation Network (Completed)**:
+    - Completed GROBID batch parsing 6,164 newly retrieved PDFs, reaching **91,517 parsed TEI XML files** in `/home/lc/k/era_oa_pdfs_tei`.
+    - Executed high-throughput parallel TEI extraction (`extract_grobid.py`) across all 91,517 files in 33.8 seconds (2,706 files/s):
+      - **91,517 papers**
+      - **4,378,379 bibliography references**
+      - **6,856,520 in-text citation mentions**
+    - Swept all 23,655 candidate items across Figshare institutional repositories (`harvest_figshare.py`, `task-5015`), recovering 47 direct PDFs.
+    - Re-linked GROBID references against canonical ERA outputs (`reference_disparities.py`): internal citation graph expanded to **172,745 matched citations** (+12,904 new linked pairs).
+    - Re-estimated Simkin & Roychowdhury citation copying model (`simkin_roychowdhury_grobid.py`, Table 12: reading rate $\hat{\rho} = 71.57\%$, copying rate $28.43\%$).
+    - Re-audited full-corpus reference resolution across 15.9M references (`run_backward_reference_corpus.py`, Table 11).
+
 ## Current State & Next Steps
 - All analytical stages complete and verified. 217 unit tests passing (100%).
-- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **92,498 PDFs** (**+17,926 net new full-text PDFs** acquired autonomously at $0.00 cost).
-- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **86,433 papers**, **4.11M references**, **6.46M in-text mentions**, **161,837 internal citations** (ready for incremental TEI parsing batch).
+- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **92,644 PDFs** (**+18,072 net new full-text PDFs** acquired autonomously at $0.00 cost).
+- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **91,517 papers**, **4.38M references**, **6.86M in-text mentions**, **172,745 internal citations**.
 - Manuscript: Modular Springer Nature *Scientometrics* article compiled in [`manuscript/main.pdf`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.pdf) with 12 publication tables in [`report/output/tables/all_paper_tables.docx`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/all_paper_tables.docx).
