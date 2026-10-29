@@ -207,8 +207,20 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
     - Re-linked GROBID references against canonical ERA outputs (`reference_disparities.py`): internal citations expanded to **159,841 records** (+25,646 new linked citation pairs).
     - Re-computed Simkin & Roychowdhury citation copying dynamics (`simkin_roychowdhury_grobid.py`) and regenerated all 12 publication APA tables and master compilation `report/output/tables/all_paper_tables.docx`.
 
+23. **DSpace & Institutional Repositories Harvest (Completed)**:
+    - Built [`src/era/sources/fulltext/harvest_dspace_repositories.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/harvest_dspace_repositories.py) targeting direct PDF repository locations across 362 institutional repositories.
+    - Yielded **1,596 net new full-text PDFs** with exceptional success on open university portals:
+      - **Research Online (University of Wollongong)**: **550 full-text PDFs**
+      - **Murdoch Research Repository (Murdoch University)**: **322 full-text PDFs** (98.8% yield)
+      - **Figshare Institutional Repositories**: **198 full-text PDFs** (99.0% yield)
+      - **NOVA (University of Newcastle)**: **197 full-text PDFs** (96.1% yield)
+      - **eCite Digital Repository (University of Tasmania)**: **106 full-text PDFs** (99.1% yield)
+      - **PubMed Central**: **76 direct downloads** (100.0% yield)
+      - **UNSWorks, Adelaide, La Trobe, James Cook, USC, Deep Blue, Pereira, Udine, etc.**: **147 additional PDFs**.
+    - Maintained fast 2-strike skipping on bot-shielded domains (Melbourne Minerva, Curtin eSpace), processing all 362 repositories cleanly in a single session.
+
 ## Current State & Next Steps
 - All analytical stages complete and verified. 214 unit tests passing (100%).
-- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **85,096 PDFs** (**+10,524 net new full-text PDFs** acquired autonomously today!).
-- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **84,741 papers**, **4.05M references**, **6.35M in-text mentions**, **159,841 internal citations**.
+- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **86,789 PDFs** (**+12,217 net new full-text PDFs** acquired autonomously).
+- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **84,861+ papers** (actively expanding via multi-threaded GROBID background extraction).
 - Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 12 publication tables in `report/output/tables/all_paper_tables.docx`.
