@@ -1,3 +1,44 @@
+% ==============================================================================
+% LLM DIRECTIVE FOR *.TEX EDITS:
+% - Propositional progression only; no rephrasing, glossing, or structural summaries.
+% - No meta-signposting ("In this section we discuss..."). Lead directly with claims.
+% - Scope limits must be parametric/mathematical bounds, not discursive hedges.
+% - Lead sentences with empirical results; subordinate procedural qualifications.
+
+"Draft using strict propositional progression. Each sentence must advance the argument by introducing a parameter, an empirical result, or a logical consequence not already stated. Discard any sentence whose truth value is fully implied by the sentence prior."
+
+"Omit epistemic hedges, meta-commentary, and conversational framing (e.g., 'it is worth noting,' 'this suggests an intricate relationship,' 'further work is required to fully capture'). State findings, governing equations, or operational assumptions directly. Express boundary conditions as explicit constraints (e.g., 'valid for $N > 50$') rather than generalized caveats."
+
+"Zero rhetorical signposting. Do not announce what subsequent paragraphs or sections will demonstrate. Begin immediately with the functional form, data definition, or empirical result. Transitions must be purely logical or chronological, never meta-textual."
+
+Apply strict technical economy to all prose generation and text editing:
+- **Propositional Density:** Discard sentences whose truth value is already implied by adjacent sentences. Zero intra-paragraph summaries.
+- **Direct Lead:** Eliminate rhetorical wind-ups and signposts. Begin paragraphs with primary findings or formal definitions.
+- **Parametric Bounds:** Formalize limitations as explicit operational constraints rather than discursive hedging.
+- **Syntax:** Invert sentences to lead with findings/actions before methodological clauses.
+
+# LaTeX Academic Drafting Rules
+
+When generating, editing, or completing text inside LaTeX files (*.tex):
+
+1. Propositional Progression:
+   - Every sentence must introduce a new parameter, empirical result, or formal claim.
+   - Never restate, gloss, or summarize a preceding sentence within the same paragraph.
+
+2. Elimination of Meta-Text & Signposting:
+   - Prohibit transitional signposting (e.g., "In the next section we show...", "Having addressed X, we turn to Y..."). Section headings carry structural navigation.
+   - Start directly with formal definitions, functional forms, or empirical outputs.
+
+3. Boundary Conditions:
+   - State scope and limitations strictly as mathematical conditions or parametric bounds (e.g., $N > 50$, $\alpha = 0.05$), not discursive caveats or generalized hedges.
+
+4. Deductive Sentence Architecture:
+   - Lead clauses with empirical results or core assertions; relegate methodological qualifiers to the end.
+   - Omit nominalizations that bloat verb phrases into abstract nouns.
+
+5. Scope Restriction:
+   - These constraints apply strictly to narrative text within .tex files. Do not apply these stylistic rules to comments, docstrings, shell scripts, Python, or SQL/database files.
+% ==============================================================================
 \documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[margin=2.5cm]{geometry}

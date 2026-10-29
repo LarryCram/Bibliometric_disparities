@@ -33,18 +33,26 @@ def process_one(session, pdf_path):
     if dest.exists() and dest.stat().st_size > 0:
         return pdf_path.stem, "skipped (exists)", 0.0
     t0 = time.time()
-    try:
-        with open(pdf_path, "rb") as f:
-            resp = session.post(
-                GROBID_URL,
-                files={"input": (pdf_path.name, f, "application/pdf")},
-                timeout=120,
-            )
-        resp.raise_for_status()
-        dest.write_text(resp.text, encoding="utf-8")
-        return pdf_path.stem, "ok", time.time() - t0
-    except Exception as e:
-        return pdf_path.stem, f"error: {type(e).__name__}: {e}", time.time() - t0
+    for attempt in range(3):
+        try:
+            with open(pdf_path, "rb") as f:
+                resp = session.post(
+                    GROBID_URL,
+                    files={"input": (pdf_path.name, f, "application/pdf")},
+                    timeout=180,
+                )
+            if resp.status_code in (500, 503) and attempt < 2:
+                time.sleep(2.0 * (attempt + 1))
+                continue
+            resp.raise_for_status()
+            dest.write_text(resp.text, encoding="utf-8")
+            return pdf_path.stem, "ok", time.time() - t0
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(2.0 * (attempt + 1))
+                continue
+            return pdf_path.stem, f"error: {type(e).__name__}: {e}", time.time() - t0
+    return pdf_path.stem, "error: max retries exceeded", time.time() - t0
 
 
 def main():
