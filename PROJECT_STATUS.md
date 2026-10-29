@@ -14,12 +14,12 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 2C: Trove Linkage** | 2-tier ISBN and title query matching across National Library catalog | 36,614 works; 87.8% of books, 61.0% of book chapters, 50–74% NTROs | **100% Complete** |
 | **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
 | **Stage 4: Paper Artifacts** | 12 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
-| **Stage 5: References & Authors** | GROBID TEI internal citation network (172,745 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (91,517 papers, 4.38M references, 6.86M mentions); Tables 9 & 10 | **100% Complete** |
+| **Stage 5: References & Authors** | GROBID TEI internal citation network (174,595 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (92,400 papers, 4.42M references, 6.92M mentions); Tables 9 & 10 | **100% Complete** |
 | **Stage 6: Assessment vs Index Disparities** | Systematic comparison of ERA submissions vs OpenAlex HEP corpus; temporal mobility gradient | `manuscript/disparities_assessment_vs_index.tex`, compiled 7-page PDF | **100% Complete** |
 | **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.97% refs, 25.3% papers); 4 metadata-only backward error tests | Evaluated 15.9M refs across full corpus; pybliometrics live caching verified (9,998 quota); Table 11 | **100% Complete** |
-| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (172.7k citations); reading rate $\hat{\rho} = 71.6\%$, copying rate $28.4\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 50.1% inter-HEP diffusion | **100% Complete** |
+| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (174.6k citations); reading rate $\hat{\rho} = 71.5\%$, copying rate $28.5\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 50.1% inter-HEP diffusion | **100% Complete** |
 | **Stage 9: Scientometrics Manuscript** | 10-page research paper in Springer Nature December 2024 format (`sn-mathphys-num`) | `manuscript/main.pdf` compiled, zero undefined citations, Zotero `MyLibrary.bib` | **100% Complete** |
-| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 217 unit tests passing | **100% Passing** |
+| **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 219 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
 
@@ -240,8 +240,17 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
     - Re-estimated Simkin & Roychowdhury citation copying model (`simkin_roychowdhury_grobid.py`, Table 12: reading rate $\hat{\rho} = 71.57\%$, copying rate $28.43\%$).
     - Re-audited full-corpus reference resolution across 15.9M references (`run_backward_reference_corpus.py`, Table 11).
 
+26. **Verified Open Repositories Harvest & Semantic Scholar Audit (Completed)**:
+    - Built [`src/era/sources/fulltext/harvest_open_domains.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/harvest_open_domains.py) targeting 9 verified open institutional and society repositories (QUT ePrints, IOP Science, Taylor & Francis Open API, Victoria University, Lancaster, AIC, AgEcon, ARAA, ANU).
+    - Harvested **90 net new full-text PDFs** (115.42 MB) with 100% verified `%PDF-` binary integrity.
+    - Built and executed polite Semantic Scholar API harvester ([`src/era/sources/fulltext/harvest_semantic_scholar.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/harvest_semantic_scholar.py)) verifying that S2 open access records originate from Unpaywall/publisher landing pages.
+    - Parsed all 90 newly acquired PDFs via GROBID 0.9.0 into TEI XML, expanding the TEI corpus to **92,400 papers**.
+    - Re-extracted all references and mentions (`extract_grobid.py`) in 32.0s: **4,422,218 bibliography references** and **6,922,711 in-text mentions**.
+    - Re-linked GROBID references against canonical ERA outputs (`reference_disparities.py`): internal citation graph expanded to **174,595 matched citations**.
+    - Re-estimated Simkin & Roychowdhury citation copying model (`simkin_roychowdhury_grobid.py`, Table 12: reading rate $\hat{\rho} = 71.48\%$, copying rate $28.52\%$).
+
 ## Current State & Next Steps
-- All analytical stages complete and verified. 217 unit tests passing (100%).
-- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **92,644 PDFs** (**+18,072 net new full-text PDFs** acquired autonomously at $0.00 cost).
-- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **91,517 papers**, **4.38M references**, **6.86M in-text mentions**, **172,745 internal citations**.
+- All analytical stages complete and verified. 219 unit tests passing (100%).
+- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **92,734 PDFs** (**+18,162 net new full-text PDFs** acquired autonomously at $0.00 cost).
+- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **92,400 papers**, **4.42M references**, **6.92M in-text mentions**, **174,595 internal citations**.
 - Manuscript: Modular Springer Nature *Scientometrics* article compiled in [`manuscript/main.pdf`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.pdf) with 12 publication tables in [`report/output/tables/all_paper_tables.docx`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/all_paper_tables.docx).
