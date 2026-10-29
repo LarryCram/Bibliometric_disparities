@@ -1,152 +1,24 @@
-%%% ====================================================================
-%%%  @BibTeX-style-file{
-%%%     author          = "Glenn Paulley",
-%%%     version         = "4",
-%%%     date            = "28 August 1992",
-%%%     time            = "10:23:39 199",
-%%%     filename        = "chicago.bst",
-%%%     address         = "Data Structuring Group
-%%%                        Department of Computer Science
-%%%                        University of Waterloo
-%%%                        Waterloo, Ontario, Canada
-%%%                        N2L 3G1",
-%%%     telephone       = "(519) 885-1211",
-%%%     FAX             = "(519) 885-1208",
-%%%     checksum        = "26323 1654 5143 37417",
-%%%     email           = "gnpaulle@bluebox.uwaterloo.ca",
-%%%     codetable       = "ISO/ASCII",
-%%%     keywords        = "",
-%%%     supported       = "yes",
-%%%     abstract        = "A BibTeX bibliography style that follows the
-%%%                        `B' reference style of the 13th Edition of
-%%%                        the Chicago Manual of Style. A detailed
-%%%                        feature list is given below.",
-%%%     docstring       = "The checksum field above contains a CRC-16
-%%%                        checksum as the first value, followed by the
-%%%                        equivalent of the standard UNIX wc (word
-%%%                        count) utility output of lines, words, and
-%%%                        characters.  This is produced by Robert
-%%%                        Solovay's checksum utility.",
-%%%  }
-%%% ====================================================================
-%
-% "Chicago" BibTeX style, chicago.bst
+%% This is file `sn-chicago.bst'
+%% Compatible with bibtex version 0.99d.
+
+%% The original source files were: chicago.bst
 % ===================================
 %
-% BibTeX `chicago' style file for BibTeX version 0.99c, LaTeX version 2.09
-% Place it in a file called chicago.bst in the BibTeX search path.
-% You need to include chicago.sty as a \documentstyle option.
-% (Placing it in the same directory as the LaTeX document should also work.)
-% This "chicago" style is based on newapa.bst (American Psych. Assoc.)
-% found at ymir.claremont.edu.
+%   Reference list ordering: alphabetical by author or whatever passes for author in the absence of one.
 %
-%   Citation format: (author-last-name year)
-%             (author-last-name and author-last-name year)
-%             (author-last-name, author-last-name, and author-last-name year)
-%             (author-last-name et al. year)
-%             (author-last-name)
-%             author-last-name (year)
-%             (author-last-name and author-last-name)
-%             (author-last-name et al.)
-%             (year) or (year,year)
-%             year or year,year
+%   If the entries in the list should be numbered consecutively comment out the two lines including SORT (in uppercase).
 %
-%   Reference list ordering: alphabetical by author or whatever passes
-%    for author in the absence of one.
-%
-% This BibTeX style has support for abbreviated author lists and for
-%    year-only citations.  This is done by having the citations
-%    actually look like
-%
+%   This BibTeX style has support for abbreviated author lists and for
+%     year-only citations.  This is done by having the citations
+%     actually look like
 %    \citeauthoryear{full-author-info}{abbrev-author-info}{year}
-%
-% The LaTeX style has to have the following (or similar)
-%
-%     \let\@internalcite\cite
-%     \def\fullcite{\def\citeauthoryear##1##2##3{##1, ##3}\@internalcite}
-%     \def\fullciteA{\def\citeauthoryear##1##2##3{##1}\@internalcite}
-%     \def\shortcite{\def\citeauthoryear##1##2##3{##2, ##3}\@internalcite}
-%     \def\shortciteA{\def\citeauthoryear##1##2##3{##2}\@internalcite}
-%     \def\citeyear{\def\citeauthoryear##1##2##3{##3}\@internalcite}
-%
-% These TeX macro definitions are found in chicago.sty. Additional
-% commands to manipulate different components of a citation can be defined
-% so that, for example, you can list author's names without parentheses
-% if using a citation as a noun or object in a sentence.
-%
-% This file was originally copied from newapa.bst at ymir.claremont.edu.
-%
-% Features of chicago.bst:
-% =======================
-%
-% - full names used in citations, but abbreviated citations are available
-%   (see above)
-% - if an entry has a "month", then the month and year are also printed
-%   as part of that bibitem.
-% - all conjunctions use "and" instead of "\&"
-% - major modification from Chicago Manual of Style (13th ed.) is that
-%   only the first author in a reference appears last name first-
-%   additional authors appear as J. Q. Public.
-% - pages are listed as "pp. xx-xx" in all entry types except
-%   article entries.
-% - book, inbook, and manual use "location: publisher" (or organization)
-%   for address and publisher. All other types list publishers separately.
-% - "pp." are used to identify page numbers for all entry types except
-%   articles.
-% - organization is used as a citation label if neither author nor editor
-%   is present (for manuals).
-% - "et al." is used for long author and editor lists, or when "others"
-%   is used.
-%
-% Modifications and bug fixes from newapa.bst:
-% ===========================================
-%
-%   - added month, year to bib entries if month is present
-%   - fixed bug with In proceedings, added necessary comma after title
-%   - all conjunctions changed to "and" from "\&"
-%   - fixed bug with author labels in my.full.label: "et al." now is
-%        generated when "others" is an author name
-%   - major modification from Chicago Manual of Style (13th ed.) is that
-%     only the first author in a reference appears last name first-
-%     additional authors appear as J. Q. Public.
-%   - pages are listed as "pp. xx-xx" in all entry types except
-%     article entries. Unnecessary (IMHO) "()" around page numbers
-%     were removed, and page numbers now don't end with a period.
-%   - created chicago.sty for use with this bibstyle (required).
-%   - fixed bugs in FUNCTION {format.vol.num.pages} for missing volume,
-%     number, and /or pages. Renamed to format.jour.vol.
-%   - fixed bug in formatting booktitles: additional period an error if
-%     book has a volume.
-%   - fixed bug: editors usually given redundant period before next clause
-%     (format.editors.dot) removed.
-%   - added label support for organizations, if both author and editor
-%     are missing (from alpha.bst). If organization is too long, then
-%     the key field is used for abbreviated citations.
-%   - In proceedings or books of several volumes, no comma was written
-%     between the "Volume x" and the page numbers (this was intentional
-%     in newapa.bst). Fixed.
-%   - Some journals may not have volumes/numbers, only month/year (eg.
-%     IEEE Computer). Fixed bug in article style that assumed volume/number
-%     was always present.
-%
-% Original documentation for newapa.sty:
-% =====================================
-%
-% This version was made by modifying the master file made by
-% Oren Patashnik (PATASHNIK@SCORE.STANFORD.EDU), and the 'named' BibTeX
-% style of Peter F. Patel-Schneider.
-%
-% Copyright (C) 1985, all rights reserved.
-% Copying of this file is authorized only if either
-% (1) you make absolutely no changes to your copy, including name, or
-% (2) if you do make changes, you name it something other than 'newapa.bst'.
-% There are undoubtably bugs in this style.  If you make bug fixes,
-% improvements, etc.  please let me know.  My e-mail address is:
-%    spencer@cgrg.ohio.state.edu or 71160.3141@compuserve.com
-%
-% This style was made from 'plain.bst', 'named.bst', and 'apalike.bst',
-% with lots of tweaking to make it look like APA style, along with tips
-% from Young Ryu and Brian Reiser's modifications of 'apalike.bst'.
+
+FUNCTION {identify.chicago.version}
+{ % Put identifying string in the .blg file
+  "sn-chicago.bst"
+  " [2024/07/19 v1.1 Chicago bibliography style]"
+  * top$
+}
 
 ENTRY
   { address
@@ -1538,6 +1410,8 @@ MACRO {tcs} {"Theoretical Computer Science"}
 
 READ
 
+EXECUTE {identify.chicago.version}
+
 FUNCTION {sortify}
 { purify$
   "l" change.case$
@@ -1806,3 +1680,4 @@ FUNCTION {end.bib}
 
 EXECUTE {end.bib}
 
+%% End of file `sn-chicago.bst'.

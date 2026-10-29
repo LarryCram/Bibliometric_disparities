@@ -190,3 +190,5 @@ resources/*
 *.synctex.gz
 *.out
 manuscript/Olensky*.pdf
+manuscript/*.zip
+manuscript/sn-article-template/

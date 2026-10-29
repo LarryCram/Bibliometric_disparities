@@ -1,32 +1,23 @@
 %%
-%% This is file `spphys.bst',
+%% This is file `sn-aps.bst',
 %% generated with the docstrip utility.
 %%
-%% The original source files were:
-%%
-%% merlin.mbs  (with options: `seq-no,vonx,nm-init,ed-au,yr-par,xmth,jtit-x,jttl-rm,thtit-a,vol-bf,volp-com,jpg-1,pgsep-c,num-xser,ser-vol,ser-ed,jnm-x,pub-date,pre-pub,doi,edpar,edby,fin-bare,pp,ed,abr,ord,jabr,xand,url,url-blk,nfss,')
-%% ----------------------------------------
+%% The original source files were: merlin.mbs
+%% ------------------------------------------
 %%********************************************************************************%%
-%%                                                                                %%
 %% For Springer physics publications. Based on the APS reference style.           %%
-%% Report bugs and improvements to: Joylene Vette-Guillaume or Frank Holzwarth    %%
-%%                                              Springer-Verlag 2004/10/15        %%
-%%                                                                                %%
 %%********************************************************************************%%
 %%
-%% Copyright 1994-2004 Patrick W Daly
  % ===============================================================
  % IMPORTANT NOTICE:
  % This bibliographic style (bst) file has been generated from one or
  % more master bibliographic style (mbs) files, listed above.
  %
- % This generated file can be redistributed and/or modified under the terms
+ % This file can be redistributed and/or modified under the terms
  % of the LaTeX Project Public License Distributed from CTAN
  % archives in directory macros/latex/base/lppl.txt; either
  % version 1 of the License, or any later version.
  % ===============================================================
- % Name and version information of the main mbs file:
- % \ProvidesFile{merlin.mbs}[2004/02/09 4.13 (PWD, AO, DPC)]
  %   For use with BibTeX version 0.99a or later
  %-------------------------------------------------------------------
  % This bibliography style file is intended for texts in ENGLISH
@@ -41,6 +32,13 @@
  % The order in the reference list is that by which the works were originally
  %   cited in the text, or that in the database.
  %---------------------------------------------------------------------
+
+FUNCTION {identify.aps.version}
+{ % Put identifying string in the .blg file
+  "sn-aps.bst"
+  " [2024/07/19 v1.1 APS bibliography style]"
+  * top$
+}
 
 ENTRY
   { address
@@ -881,8 +879,9 @@ FUNCTION {format.booktitle}
   booktitle "booktitle" bibinfo.check
   emphasize
 }
+
 FUNCTION {format.in.ed.booktitle}
-{ format.booktitle duplicate$ empty$ 'skip$
+{format.booktitle duplicate$ empty$ 'skip$
     {
       format.bvolume duplicate$ empty$ 'pop$
         { ", " swap$ * * }
@@ -1260,11 +1259,13 @@ FUNCTION {incollection}
   format.note output
   fin.entry
 }
+
 FUNCTION {inproceedings}
 { output.bibitem
   format.authors "author" output.check
   add.comma
-  crossref missing$
+  format.btitle "title" output.check
+   crossref missing$
     { format.in.ed.booktitle "booktitle" output.check
       new.sentence
       publisher empty$
@@ -1477,6 +1478,7 @@ FUNCTION {unpublished}
 
 FUNCTION {default.type} { misc }
 READ
+EXECUTE {identify.aps.version}
 STRINGS { longest.label }
 INTEGERS { number.label longest.label.width }
 FUNCTION {initialize.longest.label}
@@ -1514,7 +1516,7 @@ FUNCTION {begin.bib}
   %%"  \providecommand{\doi}{\discretionary{}{}{}\begingroup \urlstyle{rm}\Url}\fi"
   "\providecommand{\doi}[1]{\url{https://doi.org/#1}}"
   write$ newline$
-  "\bibcommenthead" write$ newline$
+  "" write$ newline$
 }
 EXECUTE {begin.bib}
 EXECUTE {init.state.consts}
@@ -1524,7 +1526,6 @@ FUNCTION {end.bib}
   "\end{thebibliography}" write$ newline$
 }
 EXECUTE {end.bib}
-%% End of customized bst file
 %%
-%% End of file `spphys.bst'.
+%% End of file `sn-aps.bst'.
 
