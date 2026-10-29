@@ -48,41 +48,62 @@ def process_one(session, pdf_path):
 
 
 def main():
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description="Run GROBID on unprocessed PDFs.")
+    parser.add_argument("--workers", type=int, default=12, help="Worker threads (default: 12)")
+    parser.add_argument("--limit", type=int, default=0, help="Max PDFs to process (0 for all)")
+    args = parser.parse_args()
+
+    concurrency = args.workers
     TEI_DIR.mkdir(parents=True, exist_ok=True)
-    all_pdfs = sorted(PDF_DIR.glob("*.pdf"))
+    
+    print("Scanning directories via os.scandir...", flush=True)
+    existing_tei = {
+        f.name[:-8] for f in os.scandir(TEI_DIR)
+        if f.name.endswith(".tei.xml") and f.stat().st_size > 0
+    }
+    
     unprocessed = [
-        p for p in all_pdfs
-        if not (TEI_DIR / f"{p.stem}.tei.xml").exists() or (TEI_DIR / f"{p.stem}.tei.xml").stat().st_size == 0
+        Path(f.path) for f in os.scandir(PDF_DIR)
+        if f.name.endswith(".pdf") and f.name[:-4] not in existing_tei and f.stat().st_size > 1024
     ]
-    print(f"Total PDFs in repository: {len(all_pdfs):,}")
-    print(f"Already processed to TEI: {len(all_pdfs) - len(unprocessed):,}")
-    print(f"Unprocessed PDFs to run: {len(unprocessed):,} (using {CONCURRENCY} workers)...")
+
+    total_pdfs = len(existing_tei) + len(unprocessed)
+    print(f"Total PDFs in repository: {total_pdfs:,}", flush=True)
+    print(f"Already processed to TEI: {len(existing_tei):,}", flush=True)
+    print(f"Unprocessed PDFs to run: {len(unprocessed):,} (using {concurrency} workers)...", flush=True)
 
     if not unprocessed:
-        print("All PDFs are already converted to TEI XML!")
+        print("All PDFs are already converted to TEI XML!", flush=True)
         return
+
+    if args.limit > 0:
+        unprocessed = unprocessed[:args.limit]
+        print(f"Limiting to first {len(unprocessed):,} PDFs.", flush=True)
 
     results = []
     t_start = time.time()
-    with requests.Session() as session, ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+    with requests.Session() as session, ThreadPoolExecutor(max_workers=concurrency) as pool:
         futures = {pool.submit(process_one, session, p): p for p in unprocessed}
         n_done = 0
         for fut in as_completed(futures):
             result = fut.result()
             results.append(result)
             n_done += 1
-            if n_done % 50 == 0 or n_done == len(unprocessed):
+            if n_done % 25 == 0 or n_done == len(unprocessed):
                 elapsed = time.time() - t_start
                 rate = n_done / elapsed if elapsed > 0 else 0
                 remaining = (len(unprocessed) - n_done) / rate if rate > 0 else 0
-                print(f"  {n_done}/{len(unprocessed)} done ({elapsed:.0f}s elapsed, "
-                      f"{rate:.2f} papers/sec, ~{remaining:.0f}s remaining)")
+                print(f"  [{n_done:5d}/{len(unprocessed)}] done ({elapsed:.0f}s elapsed, "
+                      f"{rate:.2f} papers/sec, ~{remaining:.0f}s remaining)", flush=True)
 
     elapsed = time.time() - t_start
     ok = [r for r in results if r[1] == "ok"]
     skipped = [r for r in results if r[1].startswith("skipped")]
     failed = [r for r in results if r[1].startswith("error")]
-    print(f"\nDone in {elapsed:.0f}s: {len(ok)} ok, {len(skipped)} skipped, {len(failed)} failed")
+    print(f"\nDone in {elapsed:.0f}s: {len(ok)} ok, {len(skipped)} skipped, {len(failed)} failed", flush=True)
     if failed:
         print("Sample failures:")
         for name, status, _ in failed[:10]:
@@ -90,8 +111,8 @@ def main():
     if ok:
         avg_time = sum(r[2] for r in ok) / len(ok)
         print(f"Average processing time: {avg_time:.1f}s/paper (wall-clock throughput: "
-              f"{len(results) / elapsed:.2f} papers/sec with {CONCURRENCY} workers)")
-    print(f"TEI XML written to {TEI_DIR}")
+              f"{len(results) / elapsed:.2f} papers/sec with {concurrency} workers)", flush=True)
+    print(f"TEI XML written to {TEI_DIR}", flush=True)
 
 
 if __name__ == "__main__":
