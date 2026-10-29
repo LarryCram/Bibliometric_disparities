@@ -177,7 +177,8 @@ def harvest_pmc_aws(
                         mb = nbytes / (1024 * 1024)
                         print(
                             f"[{success_count:3d}/{target_count}] SUCCESS: OAX {cand.oax_id} "
-                            f"(PMC{cand.pmc_num}) -> {mb:.2f} MB ({msg})"
+                            f"(PMC{cand.pmc_num}) -> {mb:.2f} MB ({msg})",
+                            flush=True,
                         )
                     else:
                         not_found_count += 1
