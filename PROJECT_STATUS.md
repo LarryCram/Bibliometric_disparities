@@ -221,14 +221,16 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 
 24. **PMC AWS Open Data Harvest & Modular Scientometrics Manuscript (Completed)**:
     - Built [`src/era/sources/fulltext/harvest_pmc_aws.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/fulltext/harvest_pmc_aws.py) connecting directly to the PMC Open Access Subset on AWS Open Data (`s3://pmc-oa-opendata/`).
-    - Successfully harvested test batch of 128 PDFs with 100% verification, then launched detached background daemon (`task-4698`) across 12 threads sweeping 18,800+ pending candidates (already retrieved 1,600+ new full-text PDFs autonomously at $0 cost).
-    - Restructured research manuscript into modular *Scientometrics* Springer Nature template ([`manuscript/main.tex`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.tex)) with modular section files in [`manuscript/sections/`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/sections/):
+    - Successfully scanned all 18,832 pending PMC works across 12 concurrent worker threads at strictly $0.00 cost:
+      - **5,581 net new full-text PDFs** downloaded (9,329.55 MB / 9.33 GB total volume, 29.6% hit rate against the open access redistribution subset).
+      - Total full-text PDFs on disk expanded to **92,498 PDFs** in `/home/lc/k/era_oa_pdfs/` (**+17,926 net new PDFs** acquired autonomously).
+    - Upgraded research manuscript to the official Springer Nature **December 2024 (v3.1) template package** ([`manuscript/main.tex`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.tex)) with modular section files in [`manuscript/sections/`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/sections/):
       - `introduction.tex`, `methods.tex`, `results.tex`, `discussion.tex`, `conclusion.tex`.
-    - Distilled and applied LLM drafting directives: propositional progression, zero rhetorical signposting, parametric boundary conditions, deductive syntax, and theoretical framing in Olensky's (2015) bibliometric data accuracy taxonomy (`olenskyDataAccuracyBibliometric2015`).
-    - Successfully compiled into publication-ready 10-page PDF ([`manuscript/main.pdf`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.pdf)) with zero undefined references using Zotero's `MyLibrary.bib`.
+    - Applied distilled LLM drafting directives: propositional progression, zero rhetorical signposting, parametric boundary conditions, deductive syntax, and theoretical framing in Olensky's (2015) bibliometric data accuracy taxonomy (`olenskyDataAccuracyBibliometric2015`).
+    - Successfully compiled into publication-ready 10-page PDF ([`manuscript/main.pdf`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.pdf)) with zero errors and zero undefined references using Zotero's `MyLibrary.bib`.
 
 ## Current State & Next Steps
 - All analytical stages complete and verified. 217 unit tests passing (100%).
-- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **88,500+ PDFs** and actively climbing via background PMC AWS harvester daemon.
-- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **86,433 papers**, **4.11M references**, **6.46M in-text mentions**, **161,837 internal citations**.
+- Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **92,498 PDFs** (**+17,926 net new full-text PDFs** acquired autonomously at $0.00 cost).
+- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **86,433 papers**, **4.11M references**, **6.46M in-text mentions**, **161,837 internal citations** (ready for incremental TEI parsing batch).
 - Manuscript: Modular Springer Nature *Scientometrics* article compiled in [`manuscript/main.pdf`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.pdf) with 12 publication tables in [`report/output/tables/all_paper_tables.docx`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/all_paper_tables.docx).
