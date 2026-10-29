@@ -209,11 +209,14 @@ def harvest_pmc_aws(
 
 def main():
     parser = argparse.ArgumentParser(description="Harvest open-access PDFs from PMC AWS Open Data.")
-    parser.add_argument("--count", type=int, default=128, help="Number of PDFs to retrieve (default: 128)")
-    parser.add_argument("--workers", type=int, default=8, help="Concurrent worker threads (default: 8)")
+    parser.add_argument("--count", type=int, default=128, help="Number of PDFs to retrieve (0 for all, default: 128)")
+    parser.add_argument("--all", action="store_true", help="Harvest all available pending PMC works")
+    parser.add_argument("--workers", type=int, default=12, help="Concurrent worker threads (default: 12)")
     args = parser.parse_args()
 
-    harvest_pmc_aws(target_count=args.count, max_workers=args.workers)
+    count = 0 if args.all else args.count
+    target = 100000 if count == 0 else count
+    harvest_pmc_aws(target_count=target, max_workers=args.workers)
 
 
 if __name__ == "__main__":
