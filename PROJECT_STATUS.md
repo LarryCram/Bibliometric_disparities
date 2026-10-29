@@ -14,10 +14,10 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 2C: Trove Linkage** | 2-tier ISBN and title query matching across National Library catalog | 36,614 works; 87.8% of books, 61.0% of book chapters, 50–74% NTROs | **100% Complete** |
 | **Stage 3: Multi-Index Synthesis** | Unified matrix (`era_multi_index_synthesis.parquet`) & UpSet intersections | **95.73% overall coverage** (436,273 works); comparative Olensky taxonomy | **100% Complete** |
 | **Stage 4: Paper Artifacts** | 12 APA tables (`all_paper_tables.docx`, CSV, MD) & 7 publication figures | High-resolution 300-DPI PNGs and vector PDFs in `report/output/` | **100% Complete** |
-| **Stage 5: References & Authors** | GROBID TEI internal citation network (159,841 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (84,741 papers, 4.05M references, 6.35M mentions); Tables 9 & 10 | **100% Complete** |
+| **Stage 5: References & Authors** | GROBID TEI internal citation network (161,837 citations), in-text mention importance & author/institution fidelity | `era_grobid_reference_disparities.parquet` (86,433 papers, 4.11M references, 6.46M mentions); Tables 9 & 10 | **100% Complete** |
 | **Stage 6: Assessment vs Index Disparities** | Systematic comparison of ERA submissions vs OpenAlex HEP corpus; temporal mobility gradient | `manuscript/disparities_assessment_vs_index.tex`, compiled 7-page PDF | **100% Complete** |
 | **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.97% refs, 25.3% papers); 4 metadata-only backward error tests | Evaluated 15.9M refs across full corpus; pybliometrics live caching verified (9,998 quota); Table 11 | **100% Complete** |
-| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (159.8k citations); reading rate $\hat{\rho} = 66.7\%$, copying rate $33.4\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 49.3% inter-HEP diffusion | **100% Complete** |
+| **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (161.8k citations); reading rate $\hat{\rho} = 66.7\%$, copying rate $33.4\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 49.3% inter-HEP diffusion | **100% Complete** |
 | **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 214 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
@@ -222,5 +222,5 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 ## Current State & Next Steps
 - All analytical stages complete and verified. 214 unit tests passing (100%).
 - Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **86,789 PDFs** (**+12,217 net new full-text PDFs** acquired autonomously).
-- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **84,861+ papers** (actively expanding via multi-threaded GROBID background extraction).
+- TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **86,433 papers**, **4.11M references**, **6.46M in-text mentions**, **161,837 internal citations**.
 - Manuscripts: `manuscript/disparities_assessment_vs_index.pdf` and 12 publication tables in `report/output/tables/all_paper_tables.docx`.
