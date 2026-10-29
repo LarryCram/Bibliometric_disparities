@@ -1,0 +1,153 @@
+\section{Results}\label{sec:results}
+
+\subsection{The Inclusion--Omission Landscape}
+
+Between 2011 and 2016, OpenAlex indexes 744,574 distinct scholarly outputs carrying an author affiliation associated with at least one of the 40 Australian universities. Table~\ref{tab:inclusion_landscape} partitions this address-defined corpus by ERA 2018 submission status.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparative Profile of Australian University Publications in OpenAlex (2011--2016) by ERA Submission Status.}
+\label{tab:inclusion_landscape}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrrr@{}}
+\toprule
+Status & Total Works & Share (\%) & Mean Cites & Median Cites & Has DOI (\%) & Paratext (\%) \\
+\midrule
+In ERA Corpus       & 401,261 & 53.9\% & 66.4 & 28.0 & 96.8\% & 0.02\% \\
+Not in ERA Corpus   & 343,313 & 46.1\% & 19.4 &  2.0 & 90.5\% & 0.69\% \\
+\midrule
+Total Australian HEP & 744,574 & 100.0\% & 44.7 & 11.0 & 93.9\% & 0.33\% \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Of the 744,574 address-attributed outputs, 401,261 works (53.9\%) appear in the ERA submission dataset, while 343,313 works (46.1\%) were omitted from submission by all Australian institutions. Submitted works display a median citation count of 28.0 ($\mu = 66.4$), whereas unsubmitted works exhibit a median citation count of 2.0 ($\mu = 19.4$). Within the unsubmitted partition, 41.3\% of works record zero or one citation.
+
+Table~\ref{tab:document_types} stratifies the unsubmitted corpus across OpenAlex document types.
+
+\begin{table}[htbp]
+\centering
+\caption{Document Type Distribution of Australian University Publications in OpenAlex (2011--2016) by ERA Inclusion.}
+\label{tab:document_types}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrr@{}}
+\toprule
+OpenAlex Work Type & In ERA & Not in ERA & Total Works & In-ERA Share (\%) \\
+\midrule
+\textit{Standard Evaluative Types} & & & & \\
+Article                 & 256,377 & 169,636 & 426,013 & 60.2\% \\
+Conference Paper        &  26,614 &  20,032 &  46,646 & 57.1\% \\
+Book Chapter            &   9,747 &  29,284 &  39,031 & 25.0\% \\
+Review                  &   5,551 &   2,477 &   8,028 & 69.1\% \\
+Book                    &     990 &   3,476 &   4,466 & 22.2\% \\
+\midrule
+\textit{Formally Ineligible Types} & & & & \\
+Other                   &   1,102 &  28,668 &  29,770 &  3.7\% \\
+Preprint                &   1,453 &  12,571 &  14,024 & 10.4\% \\
+Conference Abstract     &     137 &   6,620 &   6,757 &  2.0\% \\
+Book Review             &      72 &   5,917 &   5,989 &  1.2\% \\
+Reference Entry         &     289 &   4,630 &   4,919 &  5.9\% \\
+Dataset                 &       8 &   4,214 &   4,222 &  0.2\% \\
+Editorial               &     179 &   3,457 &   3,636 &  4.9\% \\
+Peer Review             &       5 &   2,236 &   2,241 &  0.2\% \\
+Paratext / Erratum      &      92 &   3,463 &   3,555 &  2.6\% \\
+Dissertation / Thesis   &       6 &   1,318 &   1,324 &  0.5\% \\
+Letter / Report / Misc  &     171 &   2,164 &   2,335 &  7.3\% \\
+\midrule
+Total                   & 401,261 & 343,313 & 744,574 & 53.9\% \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Formally ineligible document types (preprints, abstracts, book reviews, editorials, paratext, datasets, and unclassified items) total 75,348 unsubmitted works. Conversely, standard peer-reviewed formats constitute 222,428 unsubmitted works: 169,636 journal articles, 29,284 book chapters, 20,032 conference papers, and 3,476 books. For book chapters and complete books, the proportion submitted to ERA drops to 25.0\% and 22.2\% respectively.
+
+\subsection{Citation Integration of Omitted Australian Works}
+
+Cross-referencing the 343,313 unsubmitted publications against the citation graph of ERA-submitted works identifies 45,822 unsubmitted works directly cited by at least one ERA submission. Table~\ref{tab:cited_unsubmitted} disaggregates these internal citation flows.
+
+\begin{table}[htbp]
+\centering
+\caption{Unsubmitted Australian University Publications (2011--2016) Directly Cited by ERA-Submitted Papers.}
+\label{tab:cited_unsubmitted}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrr@{}}
+\toprule
+Work Type & Cited Works ($N$) & Citations from ERA & Global Mean Cites & Global Median Cites \\
+\midrule
+Article             & 35,023 & 82,914 &  63.1 & 25.0 \\
+Conference Paper    &  3,225 &  7,108 &  17.7 &  8.0 \\
+Book Chapter        &  2,132 &  4,812 &  28.7 & 10.0 \\
+Preprint            &  1,562 &  3,119 &  21.5 &  7.0 \\
+Book                &    991 &  3,420 & 104.5 & 42.0 \\
+Review Article      &    628 &  2,845 & 150.0 & 72.0 \\
+Editorial / Other   &  2,261 &  5,225 &  32.1 & 10.0 \\
+\midrule
+Total               & 45,822 & 109,443 & 61.4 & 22.0 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+ERA submissions generate 109,443 directed citation links into unsubmitted Australian publications. Within this subset, the 35,023 journal articles record a global mean citation count of 63.1 (median 25.0), and the 991 books average 104.5 global citations (median 42.0).
+
+Table~\ref{tab:high_cited_examples} documents the five most-cited unsubmitted publications bearing Australian university affiliations.
+
+\begin{table}[htbp]
+\centering
+\caption{Exemplary Highly Cited Australian Publications (2011--2016) Omitted from ERA Submissions.}
+\label{tab:high_cited_examples}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llccl@{}}
+\toprule
+DOI & Year & Type & Citations & Publication Title / Primary Affiliation \\
+\midrule
+\texttt{10.1093/nar/gkv007} & 2015 & Article & 40,101 & \textit{limma powers differential expression analyses...} (U Melbourne) \\
+\texttt{10.2753/mtp1069-6679190202} & 2011 & Article & 21,450 & \textit{PLS-SEM: Indeed a Silver Bullet} (U Newcastle) \\
+\texttt{10.1016/j.advengsoft.2013.12.007} & 2014 & Article & 19,343 & \textit{Grey Wolf Optimizer} (Griffith U) \\
+\texttt{10.1016/j.advengsoft.2016.01.008} & 2016 & Article & 14,581 & \textit{The Whale Optimization Algorithm} (Griffith U) \\
+\texttt{10.7717/peerj.453} & 2014 & Article & 6,735 & \textit{scikit-image: image processing in Python} (U Melbourne) \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\subsection{Institutional Attribution Discordance and the Temporal Mobility Gradient}
+
+Evaluating institutional attribution across 363,100 ERA canonical works possessing author affiliation strings reveals systemic divergence between the submitting institution and the published affiliation. Table~\ref{tab:affiliation_concordance} details this distribution.
+
+\begin{table}[htbp]
+\centering
+\caption{Concordance Between ERA Submitting Institution and Published Affiliations Across 363,100 Linked Works.}
+\label{tab:affiliation_concordance}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrr@{}}
+\toprule
+Affiliation Classification on Published Work & Total Works & Share (\%) \\
+\midrule
+Submitting HEP Printed on Work                      & 245,601 & 67.64\% \\
+Submitting HEP Absent, but Other Australian Entity Present &  67,537 & 18.60\% \\
+No Australian Entity on Work (Pure Foreign Affiliation) &  49,962 & 13.76\% \\
+\midrule
+Total Evaluated Works                              & 363,100 & 100.00\% \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+The submitting university appears in the author affiliation block in 245,601 works (67.64\%). In 67,537 works (18.60\%), the submitting HEP is absent while another Australian institutional entity is present. In 49,962 works (13.76\%), the publication contains zero Australian author affiliations, listing foreign institutions exclusively.
+
+Table~\ref{tab:temporal_gradient} disaggregates institutional attribution concordance by publication year across the six-year retrospective assessment window.
+
+\begin{table}[htbp]
+\centering
+\caption{Temporal Mobility Gradient: Concordance Between Submitting HEP and Published Affiliation by Publication Year.}
+\label{tab:temporal_gradient}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}rrrrr@{}}
+\toprule
+Publication Year & Works Evaluated & Submitting HEP (\%) & Other AU Entity (\%) & Pure Foreign (\%) \\
+\midrule
+2016 & 65,736 & 74.58\% & 17.02\% &  8.40\% \\
+2015 & 65,503 & 71.69\% & 17.66\% & 10.66\% \\
+2014 & 64,328 & 68.56\% & 18.40\% & 13.05\% \\
+2013 & 60,534 & 65.40\% & 19.28\% & 15.32\% \\
+2012 & 55,586 & 62.64\% & 19.72\% & 17.64\% \\
+2011 & 51,406 & 60.49\% & 20.07\% & 19.44\% \\
+\midrule
+All (2011--2016) & 363,100 & 67.64\% & 18.60\% & 13.76\% \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Attribution concordance displays a strict monotonic temporal trajectory. For publications in 2016 (one year prior to census), 74.58\% carry the submitting HEP affiliation and 8.40\% carry purely foreign affiliations. For publications in 2011 (six years prior to census), the submitting HEP share drops to 60.49\% while the pure foreign share increases to 19.44\%, representing a 2.31-fold expansion in non-domestic attribution.

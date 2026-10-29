@@ -189,3 +189,4 @@ resources/*
 *.fdb_latexmk
 *.synctex.gz
 *.out
+manuscript/Olensky*.pdf

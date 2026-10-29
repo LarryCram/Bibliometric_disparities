@@ -1,0 +1,34 @@
+\section{Methodology}\label{sec:methods}
+
+\subsection{The ERA 2018 Assessment Corpus}
+The Australian Research Council (ARC) mandated that eligible Higher Education Providers (HEPs) submit all research outputs authored by eligible academic staff employed at the census date of 31 March 2017 and published within the six-year retrospective window from 1 January 2011 to 31 December 2016. Across 40 participating HEPs, the raw submission inventory contains 567,647 output records spanning four traditional categories (journal articles, conference papers, books, book chapters) alongside non-traditional research outputs (NTROs). Output records record titles, publication years, output categories, publication outlets, digital object identifiers (DOIs), and institutional identifiers, omitting author lists.
+
+Deduplication across institutions utilizes a transitive connected-component graph constructed via Disjoint Set Union (DSU). Equivalence edges connect records sharing normalized DOIs, publisher proprietary IDs, or exact normalized titles matched within publication years. This procedure collapses 567,647 institutional submissions into 455,741 canonical works, identifying 83,945 collaborative outputs submitted independently by two or more Australian universities.
+
+\subsection{Multi-Stage Linkage to OpenAlex}
+Canonical ERA outputs are linked to the global OpenAlex snapshot (October 2026 release, containing $1.9 \times 10^8$ works and $1.4 \times 10^7$ authorships) using a deterministic three-stage matching protocol:
+\begin{enumerate}
+    \item \textbf{Compact Direct Match}: Exact string normalization of DOIs against primary OpenAlex work entities resolves 530,978 submissions.
+    \item \textbf{Alternate Location and XPAC Match}: Querying secondary identifiers and alternate repository records stored across the 1,898 partitions of OpenAlex's \texttt{work\_locations} table recovers 39,152 additional submissions.
+    \item \textbf{Canonical Synthesis}: Merging output-level matches to canonical work clusters produces 427,882 matched canonical works, establishing a 93.9\% overall linkage rate and a 98.5\% linkage rate for journal articles.
+\end{enumerate}
+
+\subsection{Extraction of the Unsubmitted Australian Corpus}
+The unsubmitted reference corpus is extracted from OpenAlex's core tables (\texttt{compact/works} and \texttt{compact/authorships}). Extraction requires satisfaction of three formal constraints:
+\begin{align}
+    \text{Publication Year: } & 2011 \le \text{py} \le 2016 \\
+    \text{Institutional Affiliation: } & \exists a \in \text{Authorships}(w) : \text{Affiliation}(a) \in \mathcal{H}_{\text{AU}} \\
+    \text{Assessment Exclusion: } & \text{work\_idx}(w) \notin \mathcal{W}_{\text{ERA}}
+\end{align}
+where $\mathcal{H}_{\text{AU}}$ denotes the set of 40 Australian universities registered in OpenAlex's institution registry (country code \texttt{AU}, entity type \texttt{education}), and $\mathcal{W}_{\text{ERA}}$ denotes the set of OpenAlex works matched to the canonical ERA dataset.
+
+\subsection{Internal Citation Graph Extraction and Affiliation Concordance}
+Citation links originating from ERA-submitted works into unsubmitted works are extracted from OpenAlex's directed citation network (\texttt{compact/references}, 12.15~GB). An internal citation link is defined by a directed pair $(u, v)$ where $u \in \mathcal{W}_{\text{ERA}}$, $v \in \mathcal{W}_{\text{Unsubmitted}}$, and $u$ cites $v$.
+
+Institutional attribution concordance is evaluated across 363,100 ERA canonical works possessing resolved author affiliation records. Each work is classified into one of three mutually exclusive categories:
+\begin{enumerate}
+    \item \textbf{Submitting HEP Printed}: The submitting university matches at least one author affiliation string printed on the published work.
+    \item \textbf{Other Australian Entity}: The submitting university is absent, but another Australian entity (an alternate university, CSIRO, or an independent medical institute) is listed.
+    \item \textbf{Pure Foreign Affiliation}: No Australian institutional entity appears in any author affiliation on the publication.
+\end{enumerate}
+Temporal attribution trends are measured by evaluating concordance shares annually across $2011 \le t \le 2016$.
