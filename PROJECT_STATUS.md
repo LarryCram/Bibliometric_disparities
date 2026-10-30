@@ -1,6 +1,6 @@
 # Project Status & Roadmap
 
-*Last Updated: 24 October 2026*
+*Last Updated: 31 October 2026*
 
 This document tracks pipeline milestones, architectural decisions, and artifact outputs for the ERA 2018 bibliometric disparities project.
 
@@ -19,6 +19,8 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
 | **Stage 7: Reference Resolution Diagnostics** | Forward anachronism rates (0.97% refs, 25.3% papers); 4 metadata-only backward error tests | Evaluated 15.9M refs across full corpus; pybliometrics live caching verified (9,998 quota); Table 11 | **100% Complete** |
 | **Stage 8: Citation Mutation-Copying (Simkin & Roychowdhury)** | Stochastic citation copying model across GROBID full text (174.8k citations); reading rate $\hat{\rho} = 71.5\%$, copying rate $28.5\%$ | `simkin_roychowdhury_grobid.py`; Table 12; 50.1% inter-HEP diffusion | **100% Complete** |
 | **Stage 9: Scientometrics Manuscript** | 10-page research paper in Springer Nature December 2024 format (`sn-mathphys-num`) | `manuscript/main.pdf` compiled, zero undefined citations, Zotero `MyLibrary.bib` | **100% Complete** |
+| **Stage 10: 3-Way Work Overlap (ERA, OAX, Trove)** | Complete multi-corpus union & 7-way disjoint Venn/UpSet resolution across all 40 universities (2011–2016) | 964,319 distinct scholarly works; 280,715 unsubmitted works recovered in Trove; Table & report | **100% Complete** |
+| **Stage 11: Author Disambiguation & Workforce Synthesis** | 4-tier author disambiguation cascade (ORCID, OpenAlex ID, NameParser, Corporate), HEP overlap breakdown & ABS HERD reconciliation | 1,032,701 person-HEP instances across 40 HEPs; multiplicity tiers; reconciled with ABS 8111.0 | **100% Complete** |
 | **Validation & Test Suite** | Full test suite across normalization, Olensky rules, matching, and S&R copying | 219 unit tests passing | **100% Passing** |
 
 ## Completed Milestones
@@ -258,8 +260,72 @@ This document tracks pipeline milestones, architectural decisions, and artifact 
     - Re-linked GROBID references against canonical ERA outputs (`reference_disparities.py`): internal citation graph expanded to **174,779 matched citations**.
     - Re-estimated Simkin & Roychowdhury citation copying model (`simkin_roychowdhury_grobid.py`, Table 12: reading rate $\hat{\rho} = 71.48\%$, copying rate $28.52\%$).
 
+28. **Complete National Trove HEP Corpus Harvest & Non-Journal Taxonomy (Completed)**:
+    - Built and executed [`src/era/sources/trove/harvest_hep_corpus.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/sources/trove/harvest_hep_corpus.py) harvesting all 40 Australian Higher Education Providers across the ERA window (2011–2016) without cross-institution deduplication, preserving each institution's complete, independent output stream.
+    - Integrated institutional aliasing, historical name migrations, and disambiguation (UWS into WSU, ADFA into UNSW, Menzies Darwin into CDU while isolating Menzies Tasmania/UTAS and Menzies Qld/Griffith).
+    - Harvested **778,806 raw research records** saved as 40 individual Parquet files in `data/trove_harvest/hep_{code}.parquet` backed by persistent on-disk cache on K_DRIVE (`trove_cache`, 8,600+ cached query pages).
+    - Executed full corpus synthesis ([`src/era/analysis/synthesize_trove_harvest.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/analysis/synthesize_trove_harvest.py)):
+      - Exported institutional yields: [`report/output/tables/trove_hep_breakdown.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/trove_hep_breakdown.csv).
+      - Exported granular document format taxonomy: [`report/output/tables/trove_format_breakdown.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/trove_format_breakdown.csv).
+      - Documented comprehensive comparative synthesis in [`report/output/trove_harvest_summary.md`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/trove_harvest_summary.md).
+    - **Empirical Resolution of the OpenAlex Omission Gap (343,313 works)**:
+      - Whereas commercial/global indexes heavily bias towards standard journal articles, Trove captures the massive volume of institutional grey literature, national books, and non-traditional outputs:
+        - **Books & Monographs**: 65,554 records (8.4% of corpus)
+        - **Conference Publications**: 74,122 records (9.5%)
+        - **Theses & Dissertations**: 49,330 records (6.3%)
+        - **Book Chapters**: 35,878 records (4.6%)
+        - **Creative Works / NTROs**: 20,061 records (2.6%)
+        - **Research Reports / Working Papers**: 11,362 records (1.5%)
+        - **Research Datasets**: 4,558 records (0.6%)
+      - Persistent Identifier Landscape: 148,265 records carry institutional repository Handle URLs (19.0%), providing stable direct resolution into Australian open-access institutional repositories.
+
+29. **3-Way Overlap Synthesis across ERA, OpenAlex, and Trove (Completed)**:
+    - Built and executed [`src/era/analysis/summarize_era_oax_trove_overlap.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/analysis/summarize_era_oax_trove_overlap.py) using 4-tier matching (DOI, Exact Clean Title, Subtitle Truncation, Jaro-Winkler >= 0.90).
+    - Unified 455,741 canonical ERA works, 744,574 Australian OpenAlex works, and 704,238 distinct Trove records into a **964,319-work deduplicated national union** (2011–2016).
+    - Resolved the 7-way disjoint partition:
+      - **All Three (`ERA ∩ OAX ∩ Trove`)**: 254,319 works (26.4% of union).
+      - **`OAX + Trove (not ERA)`**: **280,715 works** (29.1% of union) — empirical proof that 81.8% of the 343,313 outputs omitted from ERA in OpenAlex are preserved in Australian institutional repositories.
+      - **`ERA + OAX (not Trove)`**: 173,563 works (18.0%).
+      - **`Trove Only`**: 165,265 works (17.1%) — theses, dissertations, local working papers, and creative artefacts.
+      - **`OAX Only`**: 62,598 works (6.5%).
+      - **`ERA Only`**: 18,718 works (1.9%).
+      - **`ERA + Trove (not OAX)`**: 9,141 works (1.0%).
+    - Generated [`report/output/tables/era_oax_trove_3way_overlap.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/era_oax_trove_3way_overlap.csv) and [`report/output/tables/era_coverage_by_output_type.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/era_coverage_by_output_type.csv).
+
+30. **Author/Creator Disambiguation & Workforce Multiplier Analysis (Completed)**:
+    - Built and executed [`src/era/analysis/author_creator_report.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/analysis/author_creator_report.py) implementing a 4-tier author disambiguation cascade:
+      - Tier 1: Verified persistent ORCID (`author_orcid`).
+      - Tier 2: OpenAlex Disambiguated Author Entity (`author_id`).
+      - Tier 3: Structured Name Matching via `nameparser.parse()` within HEP boundaries (`hep_code, family, initial`).
+      - Tier 4: Corporate / Collective / Institutional Entity fallback.
+    - Resolved 1.03M author mentions into **174,162 distinct OpenAlex authors** (95,727 with ORCIDs) and parsed 3.48M raw Trove creator mentions.
+    - Demonstrated the **Workforce Multiplier**: contributing scholarly creators number 2.5× to 44× larger than the restricted ARC ERA permanent academic staff census (~55k FTE), capturing HDR doctoral candidates, postdocs on fixed-term grants, clinical adjuncts, and departed staff.
+    - Generated [`report/output/tables/author_disambiguation_basis.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/author_disambiguation_basis.csv), [`report/output/tables/author_headcount_by_hep.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/author_headcount_by_hep.csv), [`report/output/tables/author_headcount_by_category.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/author_headcount_by_category.csv), and [`report/output/author_creator_disambiguation_report.md`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/author_creator_disambiguation_report.md).
+
+31. **Author-Level 3-Way Overlap, Multiple Authorships & ABS HERD Reconciliation (Completed)**:
+    - Built and executed [`src/era/analysis/author_overlap_by_hep.py`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/src/era/analysis/author_overlap_by_hep.py) disaggregating all 40 Australian universities across 7 mutually exclusive person-level overlap partitions and author multiplicity tiers:
+      - **All Three (`ERA ∩ OAX ∩ Trove`)**: 697,921 persons (67.6%), 54.0% multiple authorships, 5.73 avg works/author.
+      - **`OAX + Trove (not ERA)`**: **208,219 persons** (20.2%), 23.9% multiple authorships, 1.64 avg works/author — identifying the unsubmitted research workforce.
+      - **`Trove Only`**: 80,385 persons (7.8%), 17.7% multiple authorships (82.3% single-output, matching the single-cycle turnover of HDR thesis completions).
+      - **`ERA + OAX (not Trove)`**: 41,352 persons (4.0%).
+      - **`ERA + Trove (not OAX)`**: 4,508 persons (0.4%).
+      - **`OAX Only`**: 316 persons (0.03%).
+      - **`ERA Only`**: 0 (ARC statutory reporting protects researcher privacy by redacting individual names).
+      - **Total Person-HEP Instances**: **1,032,701 instances** across 4,379,323 authorships.
+    - Reconciled against official ABS Higher Education R&D survey data (Cat. 8111.0: 78k–79k R&D PYE/year; 57.2% postgraduate students, 30.5% academic staff):
+      - 1 PYE academic R&D $\approx$ 3 FTE academic time $\to \approx 72\text{k FTE}$, yielding $\approx 120\text{k}$ distinct academics over 6 years.
+      - 45k HDR student PYE turns over once across 6 years $\to \approx 110\text{k–}125\text{k}$ distinct research students.
+      - Total real university R&D personnel $\approx 250\text{k–}275\text{k}$ distinct individuals.
+      - Discrepancy analysis explains why OpenAlex (~174k) accurately captures the publishing core, why ERA (~55k) captures only ~22% of the workforce, and why the 1.03M bibliometric instance count reflects multi-author hyper-authorship networks, honorary hospital/MRI clinical appointments, and inter-institutional mobility.
+    - Generated [`report/output/tables/author_overlap_by_hep.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/author_overlap_by_hep.csv), [`report/output/tables/author_multiplicity_by_overlap_category.csv`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/author_multiplicity_by_overlap_category.csv), and detailed synthesis artifact [`author_overlap_by_hep.md`](file:///home/lc/.gemini/antigravity-ide/brain/6ed68ee9-863d-4808-9f4d-2cf9971b699a/author_overlap_by_hep.md).
+
 ## Current State & Next Steps
 - All analytical stages complete and verified. 219 unit tests passing (100%).
 - Full texts on disk in `/home/lc/k/era_oa_pdfs/`: **92,844 PDFs** (**+18,272 net new full-text PDFs** acquired autonomously at $0.00 cost).
 - TEI full texts in `/home/lc/k/era_oa_pdfs_tei/`: **92,506 papers**, **4.43M references**, **6.93M in-text mentions**, **174,779 internal citations**.
+- National Trove Harvest: **778,806 raw research outputs** across all 40 Australian universities (2011–2016) in `data/trove_harvest/hep_*.parquet`.
+- 3-Way Multi-Corpus Union: **964,319 deduplicated works** across ERA, OpenAlex, and Trove.
+- Disaggregated Author Workforce: **1,032,701 person-HEP instances** reconciled against ABS R&D statistics.
 - Manuscript: Modular Springer Nature *Scientometrics* article compiled in [`manuscript/main.pdf`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/manuscript/main.pdf) with 12 publication tables in [`report/output/tables/all_paper_tables.docx`](file:///home/lc/Projects_Antigravity/Bibliometric_disparities/report/output/tables/all_paper_tables.docx).
+
+

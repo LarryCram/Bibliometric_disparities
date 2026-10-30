@@ -181,7 +181,7 @@ resources/*
 .tmp/
 *.tmp
 
-# LaTeX auxiliary files
+# LaTeX auxiliary and bibliography files
 *.aux
 *.bbl
 *.blg
@@ -189,6 +189,14 @@ resources/*
 *.fdb_latexmk
 *.synctex.gz
 *.out
+*.log
+*.toc
+*.lot
+*.lof
+*.nav
+*.snm
+*.vrb
+*.bib
 manuscript/Olensky*.pdf
 manuscript/*.zip
 manuscript/sn-article-template/
